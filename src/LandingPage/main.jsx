@@ -5,6 +5,8 @@ import { Container } from 'react-bootstrap';
 import CustomNavbar from './component/Navbar'; 
 import HeroSection from './component/HeroSection';
 import BestProduct from './component/BestProduct';
+import AboutUs from './component/AboutUs';
+import FaqSection from './component/FaqSection';
 
 const LandingPage = () => {
   return (
@@ -19,6 +21,8 @@ const LandingPage = () => {
       <main className="py-5">
         <Container>
           <BestProduct />
+          <AboutUs />
+          <FaqSection />
         </Container>
       </main>
 

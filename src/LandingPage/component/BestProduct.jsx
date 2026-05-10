@@ -40,7 +40,7 @@ const BestProduct = () => {
         `}
       </style>
 
-      <Container>
+      <Container id='produk'>
         <div className="text-center mb-5">
           <h2 className="fw-bold" style={{ color: '#0a1d37' }}>Produk Unggulan</h2>
         </div>
