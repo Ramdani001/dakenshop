@@ -37,6 +37,7 @@ const AuthPage = () => {
                   className={`w-50 border-0 py-3 fw-bold ${isLogin ? 'bg-dark text-white' : 'bg-transparent text-muted'}`}
                   onClick={() => setIsLogin(true)}
                   style={{ borderRadius: '0' }}
+                  href='/'
                 >
                   MASUK
                 </Button>
@@ -101,7 +102,7 @@ const AuthPage = () => {
                   <hr />
                   <span className="position-absolute top-50 start-50 translate-middle bg-white px-3 text-muted small">OR</span>
                 </div>
-                
+
                 <div className="text-center small">
                   {isLogin ? (
                     <span>BELUM PUNYA AKUN? <a href="#" onClick={() => setIsLogin(false)} className="text-info fw-bold text-decoration-none">DAFTAR SEKARANG</a></span>

@@ -5,7 +5,7 @@ import { useState } from 'react';
 // import Offcanvas from 'react-bootstrap/Offcanvas';
 import CheckoutCard from './CheckoutCard';
 
-const CustomNavbar = () => {
+const CustomNavbar = ({ navigateTo, currentPath }) => {
 
   const [show, setShow] = useState(false);
 
@@ -17,54 +17,71 @@ const CustomNavbar = () => {
   const handleCloseProfile = () => setShowProfile(false);
   const handleShowProfile = () => setShowProfile(true);
 
+  const [expanded, setExpanded] = useState(false);
+
+  const handleNavClick = (path) => {
+    navigateTo(path);
+    setExpanded(false);
+  };
+
   return (
-    <Navbar collapseOnSelect bg="white" expand="lg" className="border-bottom" fixed="top">
-      <Container fluid className="px-5">
-        
-        {/* Bagian Kiri: Logo */}
-        <Navbar.Brand href="#home" className="d-flex align-items-center">
-          <div className="text-center">
-            <Image src="/images/daken-shop-logo.png" alt="Logo"
-              style={{ width: '50px', height: 'auto' }} 
-              className="d-block mx-auto mb-1"/>
-          </div>
-        </Navbar.Brand>
+    <Navbar expanded={expanded} onToggle={setExpanded} collapseOnSelect bg="white" expand="lg" className="border-bottom" fixed="top">
+      <Container className="d-flex justify-content-between align-items-center">
+            
+          <Navbar.Brand href="#home" className="d-flex align-items-center">
+              <div className="text-center">
+                <Image src="/images/daken-shop-logo.png" alt="Logo"
+                  style={{ width: '50px', height: 'auto' }} 
+                  className="d-block mx-auto mb-1"/>
+              </div>
+            </Navbar.Brand>
 
-        <Navbar.Toggle aria-controls="basic-navbar-nav" />
+            <div className="d-flex align-items-center order-lg-last">
+              
+              <div className="nav-icon-wrapper me-2" style={{ gap: '15px' }}>
+                
+                <Nav.Link className="p-0" onClick={handleShow}>
+                  <Bag size={24} color="black" />
+                </Nav.Link>
 
-        <Navbar.Collapse id="basic-navbar-nav">
-          {/* Bagian Tengah: Menu Navigasi */}
-          <Nav className="mx-auto text-uppercase fw-bold" style={{ gap: '20px' }}>
-            <Nav.Link href="#home" className="text-black">Beranda</Nav.Link>
-            <Nav.Link href="#produk" className="text-black">Produk</Nav.Link>
+                <Nav.Link onClick={() => handleNavClick("/profile")}>
+                  <Person size={28} color="black"/>
+                </Nav.Link>
+              </div>
 
-            <Nav.Link href="#tentang-kami" className="text-black">Tentang Kami</Nav.Link>
-            <Nav.Link href="#faq" className="text-black">FAQ</Nav.Link>
-          </Nav>
+              {/* Tombol Hamburger */}
+              <Navbar.Toggle aria-controls="basic-navbar-nav" className="border-0 shadow-none" />
+            </div>
 
-          <Nav className="flex-row justify-content-center align-items-center" style={{ gap: '20px' }}>
-            <Nav.Link className="p-0" onClick={handleShow}>
-              <Bag size={24} color="black" />
-            </Nav.Link>
-            <NavDropdown
-                title={<Person size={28} color="black" />}
-                id="profile-dropdown"
-                align="end" // Agar menu muncul rata kanan (bagus untuk ikon di ujung)
-                className="p-0 custom-dropdown"
-              >
-                <NavDropdown.Item href="#profile">Profil Saya</NavDropdown.Item>
-                <NavDropdown.Item href="#orders">Pesanan</NavDropdown.Item>
-                <NavDropdown.Divider />
-                <NavDropdown.Item href="#logout" className="text-danger">
-                  Keluar
-                </NavDropdown.Item>
-              </NavDropdown>
-          </Nav>
-        </Navbar.Collapse>
+            {/* Isi Navigasi */}
+            <Navbar.Collapse id="basic-navbar-nav">
+              <Nav className="mx-auto fw-bold text-center">
+                  <Nav.Link 
+                    onClick={() => navigateTo("/")}
+                    className={currentPath === "/tentang" ? "text-danger" : "text-black"}
+                    href="#home"> BERANDA
+                  </Nav.Link>
+                  <Nav.Link 
+                    onClick={() => handleNavClick("/produk")} 
+                    className={currentPath === "/produk" ? "text-danger" : "text-black"}
+                  > PRODUK
+                  </Nav.Link>
+                  <Nav.Link 
+                      onClick={() => navigateTo("/")}
+                      className={currentPath === "/tentang" ? "text-danger" : "text-black"}
+                      href="#tentang"> TENTANG KAMI
+                  </Nav.Link>
+                  <Nav.Link 
+                    onClick={() => navigateTo("/")}
+                    className={currentPath === "/tentang" ? "text-danger" : "text-black"}
+                    href="#faq"> FAQ
+                  </Nav.Link>
+              </Nav>
+            </Navbar.Collapse>
+          </Container>
 
-      </Container>
 
-      <Offcanvas show={show} onHide={handleClose} placement="end">
+        <Offcanvas show={show} onHide={handleClose} placement="end">
         <Offcanvas.Header closeButton className="border-bottom">
           <Offcanvas.Title className="fw-bold">Keranjang Belanja</Offcanvas.Title>
         </Offcanvas.Header>

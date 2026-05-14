@@ -3,14 +3,14 @@ import { Container, Row, Col, Card } from 'react-bootstrap';
 
 const BestProduct = () => {
   const products = [
-    { id: 1, title: "Alas Adonan", image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=1000&auto=format&fit=crop", description: "Fitur smart lock dan pelacakan GPS." },
-    { id: 2, title: "Alas Kasur Bambu", image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=1000&auto=format&fit=crop", description: "Material ringan dengan daya tahan ekstra." },
-    { id: 3, title: "Mesin Jahit", image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=1000&auto=format&fit=crop", description: "Desain futuristik dengan port charging." }
+    { id: 1, title: "Alas Adonan", image: "images/best_alas.png", description: "Material ringan dengan daya tahan ekstra."},
+    { id: 2, title: "Alas Kasur Bambu", image: "images/best_kasur.png", description: "Material ringan dengan daya tahan ekstra." },
+    { id: 3, title: "Mesin Jahit", image: "images/best_mesin.png", description: "Desain futuristik dengan port charging." }
   ];
 
   return (
     <section className="py-5 bg-white">
-      {/* BAGIAN CSS HOVER */}
+
       <style>
         {`
           .custom-card {
@@ -40,7 +40,7 @@ const BestProduct = () => {
         `}
       </style>
 
-      <Container id='produk'>
+      <Container>
         <div className="text-center mb-5">
           <h2 className="fw-bold" style={{ color: '#0a1d37' }}>Produk Unggulan</h2>
         </div>
@@ -56,7 +56,7 @@ const BestProduct = () => {
                   {/* Container Gambar */}
                   <div className="img-container mb-4 mx-auto" style={{ width: '100%', height: '200px' }}>
                     <img 
-                      src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=1000&auto=format&fit=crop" 
+                      src={product.image}
                       alt={product.title}
                       className="product-img"
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}

@@ -3,7 +3,7 @@ import { Container, Row, Col } from 'react-bootstrap';
 
 const AboutUs = () => {
   return (
-    <section id="tentang-kami" className="py-5 bg-light">
+    <section id="tentang" className="py-5 bg-light">
       <Container>
         <Row className="align-items-center">
           <Col md={6} className="mb-4 mb-md-0">

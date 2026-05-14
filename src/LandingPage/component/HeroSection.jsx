@@ -1,7 +1,14 @@
 import React from 'react';
 import { Container, Row, Col, Button } from 'react-bootstrap';
 
-const HeroSection = () => {
+
+const HeroSection = ({navigateTo}) => {
+  const handleNavClick = (path) => {
+      // Sekarang navigateTo sudah terdefinisi karena diambil dari props di atas
+      if (navigateTo) {
+        navigateTo(path);
+      }
+    };
   return (
     <section 
       className="d-flex align-items-center" 
@@ -34,6 +41,7 @@ const HeroSection = () => {
                 size="lg"
                 className="rounded-pill px-5 fw-bold shadow-sm"
                 style={{ backgroundColor: '#0d6efd', border: 'none' }}
+                onClick={() => handleNavClick("/produk")} 
               >
                 Lihat Produk
               </Button>
