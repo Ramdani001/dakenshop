@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navbar, Nav, Container, Image, Offcanvas, Button, Modal, Form, Row, Col, FloatingLabel } from 'react-bootstrap';
+import { Navbar, Nav, Container, Image, Offcanvas, Button, Modal, Form, Row, Col, FloatingLabel, NavDropdown } from 'react-bootstrap';
 import { Bag, Person } from 'react-bootstrap-icons';
 import { useState } from 'react';
 // import Offcanvas from 'react-bootstrap/Offcanvas';
@@ -18,7 +18,7 @@ const CustomNavbar = () => {
   const handleShowProfile = () => setShowProfile(true);
 
   return (
-    <Navbar bg="white" expand="lg" className="border-bottom" fixed="top">
+    <Navbar collapseOnSelect bg="white" expand="lg" className="border-bottom" fixed="top">
       <Container fluid className="px-5">
         
         {/* Bagian Kiri: Logo */}
@@ -42,14 +42,23 @@ const CustomNavbar = () => {
             <Nav.Link href="#faq" className="text-black">FAQ</Nav.Link>
           </Nav>
 
-          {/* Bagian Kanan: Ikon Keranjang & User */}
-          <Nav className="align-items-center" style={{ gap: '20px' }}>
+          <Nav className="flex-row justify-content-center align-items-center" style={{ gap: '20px' }}>
             <Nav.Link className="p-0" onClick={handleShow}>
               <Bag size={24} color="black" />
             </Nav.Link>
-            <Nav.Link className="p-0" onClick={handleShowProfile}>
-              <Person size={28} color="black" />
-            </Nav.Link>
+            <NavDropdown
+                title={<Person size={28} color="black" />}
+                id="profile-dropdown"
+                align="end" // Agar menu muncul rata kanan (bagus untuk ikon di ujung)
+                className="p-0 custom-dropdown"
+              >
+                <NavDropdown.Item href="#profile">Profil Saya</NavDropdown.Item>
+                <NavDropdown.Item href="#orders">Pesanan</NavDropdown.Item>
+                <NavDropdown.Divider />
+                <NavDropdown.Item href="#logout" className="text-danger">
+                  Keluar
+                </NavDropdown.Item>
+              </NavDropdown>
           </Nav>
         </Navbar.Collapse>
 
@@ -60,17 +69,14 @@ const CustomNavbar = () => {
           <Offcanvas.Title className="fw-bold">Keranjang Belanja</Offcanvas.Title>
         </Offcanvas.Header>
 
-        {/* Menggunakan flexbox pada Body untuk memastikan konten dan footer terpisah */}
         <Offcanvas.Body className="d-flex flex-column p-0">
           
-          {/* Area Produk: bisa di-scroll */}
           <div className="flex-grow-1 p-3" style={{ overflowY: 'auto' }}>
             <CheckoutCard />
-            <CheckoutCard /> {/* Contoh jika produk banyak */}
+            <CheckoutCard /> 
             <CheckoutCard />
           </div>
 
-          {/* Area Checkout: Fixed di bawah */}
           <div className="p-3 border-top bg-white shadow-lg" style={{ zIndex: 10 }}>
             <div className="d-flex justify-content-between mb-3">
               <span className="text-muted">Total Estimasi:</span>

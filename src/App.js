@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import AdminDashboard from "./Admin/AdminDashboard.tsx";
 import "./App.css";
 import LandingPage from "./LandingPage/main";
+import AuthPage from "./Login/AuthPage.jsx";
 
 function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -23,11 +24,17 @@ function App() {
 
   return (
     <div className="App">
-      {currentPath === "/admin" ? (
-        <AdminDashboard />
-      ) : (
-        <LandingPage onAdminClick={() => navigateTo("/admin")} />
-      )}
+      <div className="App">
+          {(() => {
+            if (currentPath === "/admin") {
+              return <AdminDashboard />;
+            } else if (currentPath === "/login") {
+              return <AuthPage />;
+            } else {
+              return <LandingPage onAdminClick={() => navigateTo("/admin")} />;
+            }
+          })()}
+        </div>
     </div>
   );
 }

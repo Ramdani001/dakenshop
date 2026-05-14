@@ -7,10 +7,14 @@ import HeroSection from './component/HeroSection';
 import BestProduct from './component/BestProduct';
 import AboutUs from './component/AboutUs';
 import FaqSection from './component/FaqSection';
+import UnboxingPopup from './component/UnboxingPopup';
 
 const LandingPage = () => {
   return (
     <div className="landing-page">
+
+      <UnboxingPopup />
+
       {/* 1. Header/Navbar Section */}
       <CustomNavbar />
 

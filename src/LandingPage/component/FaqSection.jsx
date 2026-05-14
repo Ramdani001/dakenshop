@@ -20,7 +20,7 @@ const FaqSection = () => {
             </Accordion.Item>
             
             <Accordion.Item eventKey="1" className="border-bottom py-2">
-              <Accordion.Header>Berapa lama waktu pengiriman?</Accordion.Header>
+              <Accordion.Header>Berapa lama waktu pengemasan?</Accordion.Header>
               <Accordion.Body className="text-muted">
                 Pengiriman biasanya memakan waktu 2-4 hari kerja tergantung pada lokasi pengiriman Anda.
               </Accordion.Body>
@@ -30,6 +30,13 @@ const FaqSection = () => {
               <Accordion.Header>Apakah produk memiliki garansi?</Accordion.Header>
               <Accordion.Body className="text-muted">
                 Ya, setiap produk elektronik cerdas di DakenShop dilengkapi dengan garansi resmi selama 1 tahun.
+              </Accordion.Body>
+            </Accordion.Item>
+
+            <Accordion.Item eventKey="4" className="border-bottom py-2">
+              <Accordion.Header>Jam Operasional Toko</Accordion.Header>
+              <Accordion.Body className="text-muted">
+                Senin - jumat 08.30 - 17.00, sabtu 08.30 - 15.00, hari minggu dan tgl merah libur dikirim di hari berikutnya.
               </Accordion.Body>
             </Accordion.Item>
           </Accordion>
