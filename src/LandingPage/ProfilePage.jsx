@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { Container, Row, Col, Card, Form, Button, Nav, Image, Badge } from 'react-bootstrap';
-import { Person, Bag, GeoAlt, Bell, BoxArrowRight, ShieldLock, Camera } from 'react-bootstrap-icons';
+import { Container, Row, Col, Card, Form, Button, Nav, Badge } from 'react-bootstrap';
+import { Person, Bag, GeoAlt, BoxArrowRight, ShieldLock, Camera } from 'react-bootstrap-icons';
 
 const ProfilePage = ({ navigateTo }) => {
   const [activeTab, setActiveTab] = useState('profile');
 
-  // Fungsi navigasi dinamis
   const renderContent = () => {
     switch (activeTab) {
       case 'profile': return <PersonalInfo />;
@@ -19,11 +18,9 @@ const ProfilePage = ({ navigateTo }) => {
     <Container className="mt-5 pt-5 mb-5">
       <Row className="g-4">
         
-        {/* SIDEBAR KIRI (FOTO PROFIL & MENU) */}
         <Col lg={4} md={5}>
           <Card className="border-0 shadow-sm rounded-4 p-4 text-center">
             
-            {/* BAGIAN FOTO PROFIL (Sesuai image_6b050d.png) */}
             <div className="mb-4">
               <div className="position-relative d-inline-block">
                 <div 
@@ -31,9 +28,8 @@ const ProfilePage = ({ navigateTo }) => {
                   style={{ width: '120px', height: '120px' }}
                 >
                   <Person size={60} className="text-secondary" />
-                  {/* <Image src="/path/to/photo.jpg" /> */}
                 </div>
-                {/* Ikon Kamera untuk Ganti Foto */}
+
                 <Button 
                   variant="dark" 
                   size="sm" 
@@ -47,7 +43,6 @@ const ProfilePage = ({ navigateTo }) => {
               <p className="text-muted small">john.doe@email.com</p>
             </div>
 
-            {/* NAVIGASI MENU (Gaya Grid Mobile / List Desktop) */}
             <Nav className="profile-nav-container border-top pt-3">
               <Row className="g-2 w-100 m-0 text-start">
                 <Col xs={6} md={12}>
@@ -96,8 +91,6 @@ const ProfilePage = ({ navigateTo }) => {
   );
 };
 
-// --- KOMPONEN KONTEN (SPA) ---
-
 const PersonalInfo = () => (
   <>
     <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
@@ -140,7 +133,6 @@ const PersonalInfo = () => (
 );
 
 const OrderHistory = () => {
-  // Data dummy riwayat pesanan
   const orders = [
     {
       id: "ORD-99281",

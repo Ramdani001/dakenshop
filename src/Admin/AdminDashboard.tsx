@@ -2,18 +2,32 @@ import React, { CSSProperties, useEffect, useState } from "react";
 import { Badge, Button, Offcanvas } from "react-bootstrap";
 import {
   Bell,
+  Box2Fill,
   BoxArrowRight,
   Grid3x3Gap,
   LightningChargeFill,
   List,
+  People,
   Search,
+  Speedometer2,
+  Wallet2,
 } from "react-bootstrap-icons";
 import CategoryManager from "./CategoryManager.tsx";
+import DashboardHome from "./DashboardHome.tsx";
+import UserManagement from "./UserManagement.tsx";
+
+// 1. Definisikan tipe menu yang valid agar TypeScript aman
+type MenuType = "dashboard" | "user" | "categories" | "products" | "transaction";
+
+interface NavItemProps {
+  menu: MenuType;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+}
 
 const AdminDashboard: React.FC = () => {
-  const [activeMenu, setActiveMenu] = useState<"products" | "categories">(
-    "categories",
-  );
+  // Set default active menu ke 'categories' sesuai kebutuhan Anda sebelumnya
+  const [activeMenu, setActiveMenu] = useState<MenuType>("dashboard");
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
 
@@ -55,7 +69,8 @@ const AdminDashboard: React.FC = () => {
     },
   };
 
-  const NavItem = ({ menu, icon: Icon, label }: any) => (
+  // 2. Komponen NavItem dengan tipe data properti yang jelas
+  const NavItem: React.FC<NavItemProps> = ({ menu, icon: Icon, label }) => (
     <div
       onClick={() => {
         setActiveMenu(menu);
@@ -104,7 +119,13 @@ const AdminDashboard: React.FC = () => {
           DAKEN SHOP
         </span>
       </div>
+      
+      <NavItem menu="dashboard" icon={Speedometer2} label="Dashboard" />
+      <NavItem menu="user" icon={People} label="User Management" />
       <NavItem menu="categories" icon={Grid3x3Gap} label="Categories" />
+      <NavItem menu="products" icon={Box2Fill} label="Products" />
+      <NavItem menu="transaction" icon={Wallet2} label="Transaction" />
+      
       <div className="mt-auto px-4">
         <Button
           variant="outline-danger"
@@ -117,12 +138,50 @@ const AdminDashboard: React.FC = () => {
     </>
   );
 
+  // 3. Fungsi Render Konten secara SPA (Dinamis tanpa reload)
+  const renderContent = () => {
+    switch (activeMenu) {
+      case "dashboard":
+        return (
+          <div>
+            <DashboardHome />
+          </div>
+        );
+      case "user":
+        return (
+          <div>
+            <UserManagement />
+          </div>
+        );
+      case "categories":
+        return <CategoryManager />;
+      case "products":
+        return (
+          <div>
+            <h2 className="fw-bold mb-3">Product</h2>
+            <p className="text-muted">Kelola data product.</p>
+          </div>
+        );
+      case "transaction":
+        return (
+          <div>
+            <h2 className="fw-bold mb-3">Transaction</h2>
+            <p className="text-muted">Kelola data transaction.</p>
+          </div>
+        );
+      default:
+        return <DashboardHome />;
+    }
+  };
+
   return (
     <div style={styles.wrapper}>
+      {/* Sidebar Desktop */}
       <div style={styles.sidebarDesktop}>
         <SidebarContent />
       </div>
 
+      {/* Sidebar Mobile (Offcanvas) */}
       <Offcanvas
         show={showMobileSidebar}
         onHide={() => setShowMobileSidebar(false)}
@@ -139,7 +198,9 @@ const AdminDashboard: React.FC = () => {
         </Offcanvas.Body>
       </Offcanvas>
 
+      {/* Konten Utama */}
       <div style={styles.mainContent}>
+        {/* Top Navbar */}
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div className="d-flex align-items-center gap-3">
             {isMobile && (
@@ -152,10 +213,16 @@ const AdminDashboard: React.FC = () => {
                 <List size={24} />
               </Button>
             )}
+            {/* Menampilkan judul dinamis di area konten utama */}
+            {!isMobile && (
+              <h4 className="fw-bold m-0 text-capitalize">
+                {activeMenu === 'user' ? 'User Management' : activeMenu}
+              </h4>
+            )}
           </div>
           <div className="d-flex gap-3 align-items-center">
             {!isMobile && <Search size={20} className="text-muted" />}
-            <div className="position-relative">
+            <div className="position-relative" style={{ cursor: "pointer" }}>
               <Bell size={22} className="text-muted" />
               <Badge
                 pill
@@ -179,7 +246,7 @@ const AdminDashboard: React.FC = () => {
               }}
             >
               <img
-                src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff"
+                src="https://ui-avatars.com/api/?name=Admin+Daken&background=0D8ABC&color=fff"
                 style={{ borderRadius: "50%", width: "100%" }}
                 alt="profile"
               />
@@ -187,8 +254,9 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Card Konten SPA Dinamis */}
         <div style={styles.glassCard}>
-          <CategoryManager />
+          {renderContent()}
         </div>
       </div>
     </div>

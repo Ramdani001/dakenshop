@@ -1,8 +1,5 @@
 import React from 'react';
 import { Container } from 'react-bootstrap';
-// Impor Navbar yang sudah kita buat sebelumnya
-// Asumsi: Navbar disimpan di folder components atau folder yang sama
-import CustomNavbar from './component/Navbar'; 
 import HeroSection from './component/HeroSection';
 import BestProduct from './component/BestProduct';
 import AboutUs from './component/AboutUs';

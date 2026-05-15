@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navbar, Nav, Container, Image, Offcanvas, Button, Modal, Form, Row, Col, FloatingLabel, NavDropdown } from 'react-bootstrap';
+import { Navbar, Nav, Container, Image, Offcanvas, Button, Modal, Form, Row, Col, FloatingLabel} from 'react-bootstrap';
 import { Bag, Person } from 'react-bootstrap-icons';
 import { useState } from 'react';
 // import Offcanvas from 'react-bootstrap/Offcanvas';
@@ -15,7 +15,6 @@ const CustomNavbar = ({ navigateTo, currentPath }) => {
   const [showProfile, setShowProfile] = useState(false);
 
   const handleCloseProfile = () => setShowProfile(false);
-  const handleShowProfile = () => setShowProfile(true);
 
   const [expanded, setExpanded] = useState(false);
 
@@ -28,7 +27,7 @@ const CustomNavbar = ({ navigateTo, currentPath }) => {
     <Navbar expanded={expanded} onToggle={setExpanded} collapseOnSelect bg="white" expand="lg" className="border-bottom" fixed="top">
       <Container className="d-flex justify-content-between align-items-center">
             
-          <Navbar.Brand href="#home" className="d-flex align-items-center">
+          <Navbar.Brand onClick={() => handleNavClick("/")} className="d-flex align-items-center">
               <div className="text-center">
                 <Image src="/images/daken-shop-logo.png" alt="Logo"
                   style={{ width: '50px', height: 'auto' }} 
@@ -49,11 +48,9 @@ const CustomNavbar = ({ navigateTo, currentPath }) => {
                 </Nav.Link>
               </div>
 
-              {/* Tombol Hamburger */}
               <Navbar.Toggle aria-controls="basic-navbar-nav" className="border-0 shadow-none" />
             </div>
 
-            {/* Isi Navigasi */}
             <Navbar.Collapse id="basic-navbar-nav">
               <Nav className="mx-auto fw-bold text-center">
                   <Nav.Link 

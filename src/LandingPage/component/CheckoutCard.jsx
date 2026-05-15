@@ -17,7 +17,7 @@ const CheckoutCard = () => {
     <Card className="shadow-sm border-0 mb-3" style={{ borderRadius: '15px', overflow: 'hidden' }}>
       <Card.Body className="p-0">
         <Row className="g-0 align-items-center">
-          {/* SISI KIRI: GAMBAR PRODUK */}
+
           <Col xs={4} md={3}>
             <div style={{ height: '100%', minHeight: '150px', overflow: 'hidden' }}>
               <img
@@ -28,7 +28,6 @@ const CheckoutCard = () => {
             </div>
           </Col>
 
-          {/* SISI KANAN: DETAIL PRODUK */}
           <Col xs={8} md={9} className="p-3">
             <div className="d-flex justify-content-between align-items-start">
               <div>
@@ -40,7 +39,6 @@ const CheckoutCard = () => {
               </div>
             </div>
 
-            {/* KONTROL QUANTITY & BUTTON */}
             <div className="d-flex justify-content-between align-items-center mt-3">
               <InputGroup style={{ width: '120px' }}>
                 <Button variant="outline-secondary" size="sm" onClick={handleDecrease}>

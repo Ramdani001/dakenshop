@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Container, Row, Col, Form, Button, Card, Nav } from 'react-bootstrap';
-import { Envelope, Lock, Google, Facebook, Apple, BoxSeam, CameraVideo, CheckCircle, Person } from 'react-bootstrap-icons';
+import { Container, Row, Col, Form, Button, Card } from 'react-bootstrap';
+import { Envelope, Lock, BoxSeam, CameraVideo, CheckCircle, Person } from 'react-bootstrap-icons';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -11,11 +11,9 @@ const AuthPage = () => {
         <Card className="shadow-lg border-0 overflow-hidden" style={{ borderRadius: '20px' }}>
           <Row className="g-0">
             
-            {/* Bagian Kiri: Banner Informasi (Sesuai watermarked_img_7723738384619186905.png) */}
             <Col lg={6} className="d-none d-lg-flex flex-column justify-content-center align-items-center p-5 bg-white text-center">
               <h2 className="fw-bold mb-4">JANGAN LUPA UNBOXING</h2>
-              
-              {/* Ilustrasi Alur */}
+
               <div className="d-flex flex-column align-items-center gap-3 mb-4">
                 <BoxSeam size={100} color="#b58d53" />
                 <div className="d-flex align-items-center gap-3">
@@ -29,9 +27,8 @@ const AuthPage = () => {
               <p className="text-muted">Mulai pengalaman belanja kebutuhan dapur Anda dengan lebih aman dan nyaman.</p>
             </Col>
 
-            {/* Bagian Kanan: Form Login/Register */}
             <Col lg={6} className="p-4 p-md-5 bg-white">
-              {/* Tab Masuk / Daftar */}
+
               <div className="d-flex mb-4 rounded-3 overflow-hidden shadow-sm" style={{ backgroundColor: '#f8f9fa' }}>
                 <Button 
                   className={`w-50 border-0 py-3 fw-bold ${isLogin ? 'bg-dark text-white' : 'bg-transparent text-muted'}`}

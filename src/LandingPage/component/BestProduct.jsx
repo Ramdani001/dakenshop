@@ -45,27 +45,39 @@ const BestProduct = () => {
           <h2 className="fw-bold" style={{ color: '#0a1d37' }}>Produk Unggulan</h2>
         </div>
 
-        <Row className="g-4 justify-content-center">
+        <Row className="g-3 justify-content-center">
           {products.map((product) => (
-            <Col key={product.id} xs={12} md={4}>
-              <Card className="h-100 border-0 shadow-sm text-center py-4 px-3 custom-card">
-                <Card.Body className="d-flex flex-column">
+            <Col 
+              key={product.id} 
+              xs={6}
+              className="col-five"
+            >
+              <Card className="h-100 border-0 shadow-sm text-center custom-card p-2" style={{ borderRadius: '15px' }}>
+                <Card.Body className="d-flex flex-column align-items-center p-2">
                   
-                  <Card.Title className="fw-bold mb-4">{product.title}</Card.Title>
+                  <Card.Title className="fw-bold mb-2" style={{ fontSize: '0.9rem', minHeight: '2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {product.title}
+                  </Card.Title>
 
-                  {/* Container Gambar */}
-                  <div className="img-container mb-4 mx-auto" style={{ width: '100%', height: '200px' }}>
+                  <div 
+                    className="img-container mb-3 overflow-hidden" 
+                    style={{ width: '100%', aspectRatio: '1/1', borderRadius: '10px' }}
+                  >
                     <img 
                       src={product.image}
                       alt={product.title}
-                      className="product-img"
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
                   </div>
 
-                  <Card.Text className="text-muted mt-auto">
-                    {product.description}
-                  </Card.Text>
+                  <div className="mt-auto mb-3">
+                    <span className="text-muted text-decoration-line-through small me-2">Rp 150.000</span>
+                    <span className="fw-bold text-dark">Rp 100.000</span>
+                  </div>
+
+                  <button className="btn btn-outline-dark w-100 rounded-pill btn-sm fw-bold">
+                    Add to Cart
+                  </button>
 
                 </Card.Body>
               </Card>

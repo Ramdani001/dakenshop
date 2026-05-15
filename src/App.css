@@ -45,37 +45,33 @@ html, body, #root {
 .nav-icon-wrapper {
   display: flex;
   align-items: center;
-  position: relative; /* Penting sebagai patokan dropdown */
+  position: relative;
 }
 
-/* Memaksa dropdown menu melayang (absolute) */
 .custom-dropdown-mobile .dropdown-menu {
   position: absolute !important;
-  top: 100% !important; /* Muncul tepat di bawah ikon */
-  right: 0 !important;   /* Rata kanan terhadap ikon user */
+  top: 100% !important;
+  right: 0 !important;
   left: auto !important;
   float: none !important;
   margin-top: 10px !important;
   padding: 8px 0;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15); /* Efek bayangan agar terlihat melayang */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   background-color: white;
-  z-index: 1050; /* Memastikan di atas elemen lain */
+  z-index: 1050;
   min-width: 150px;
 }
 
-/* Menghilangkan panah kecil dropdown agar lebih rapi */
 .custom-dropdown-mobile .dropdown-toggle::after {
   display: none !important;
 }
 
-/* Memastikan tombol hamburger tidak berubah posisi */
 .navbar-toggler {
   padding: 0;
   margin-left: 10px;
 }
 
-/* Mengatur tinggi minimum halaman agar background penuh */
 .products-page {
   background-color: #f8f9fa;
   min-height: 100vh;
@@ -91,7 +87,6 @@ html, body, #root {
   --bs-gutter-y: 0.5rem;
 }
 
-/* Memastikan gambar produk selalu simetris (1:1) */
 .product-img-container {
   width: 100%;
   aspect-ratio: 1 / 1;
@@ -99,21 +94,20 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f0f0f0; /* Background placeholder jika gambar mati */
+  background-color: #f0f0f0;
   border-radius: 12px 12px 0 0;
 }
 
 .product-img-container img {
   width: 100%;
   height: 100%;
-  object-fit: cover; /* Gambar akan terpotong rapi memenuhi kotak */
+  object-fit: cover;
 }
 
-/* Styling teks agar lebih bersih */
 .product-title {
   font-size: 0.95rem;
   font-weight: 600;
-  min-height: 2.8rem; /* Memberikan ruang agar judul panjang tidak merusak layout */
+  min-height: 2.8rem;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -126,14 +120,12 @@ html, body, #root {
   font-size: 1.1rem;
 }
 
-/* Sidebar Container */
 .filter-sidebar {
   border: none;
   background: transparent;
   padding: 0;
 }
 
-/* Judul Kategori & Harga */
 .filter-label {
   font-size: 0.85rem;
   font-weight: 700;
@@ -145,7 +137,6 @@ html, body, #root {
   padding-bottom: 5px;
 }
 
-/* Link Kategori */
 .filter-link {
   color: #666 !important;
   font-size: 0.95rem;
@@ -156,11 +147,10 @@ html, body, #root {
 }
 
 .filter-link:hover {
-  color: #a52a2a !important; /* Daken Red Accent */
+  color: #a52a2a !important;
   padding-left: 5px !important;
 }
 
-/* Range Harga */
 .price-input-group input {
   border: 1px solid #e0e0e0;
   border-radius: 4px;
@@ -170,18 +160,15 @@ html, body, #root {
   text-align: center;
 }
 
-/* Menghilangkan bullet/tombol default slider agar lebih minimalis */
 input[type=range] {
-  accent-color: #222; /* Warna slider jadi hitam elegan */
+  accent-color: #222;
 }
 
-/* Sidebar Container Desktop */
 .filter-sidebar-content {
   text-align: left !important;
   min-width: 200px;
 }
 
-/* Judul Kategori & Harga */
 .filter-label {
   font-size: 0.85rem;
   font-weight: 800;
@@ -194,7 +181,6 @@ input[type=range] {
   display: block;
 }
 
-/* Link Navigasi agar tidak terpotong */
 .filter-link {
   color: #444 !important;
   font-size: 0.95rem;
@@ -202,33 +188,30 @@ input[type=range] {
   text-decoration: none;
   display: block;
   transition: 0.2s;
-  white-space: nowrap; /* Mencegah teks turun ke bawah jika ruang cukup */
+  white-space: nowrap;
 }
 
 .filter-link:hover {
-  color: #a52a2a !important; /* Daken Red */
+  color: #a52a2a !important;
   padding-left: 5px !important;
 }
 
-/* Input Harga agar tidak ciut (Fixing 'Mi' & 'Ma') */
 .price-input-group .form-control {
   font-size: 0.8rem;
   padding: 8px 5px;
   text-align: center;
-  min-width: 60px; /* Mencegah input mengecil seperti di image_76711b.png */
+  min-width: 60px;
 }
 
-/* Mengecilkan ukuran panah navigasi di dalam card produk */
 .product-img-container .carousel-control-prev-icon,
 .product-img-container .carousel-control-next-icon {
   width: 20px;
   height: 20px;
-  background-color: rgba(255, 255, 255, 0.5); /* Background transparan tipis */
+  background-color: rgba(255, 255, 255, 0.5);
   border-radius: 50%;
   background-size: 60%;
 }
 
-/* Sembunyikan panah navigasi, hanya muncul saat kursor diarahkan ke card (hover) */
 .product-card .carousel-control-prev,
 .product-card .carousel-control-next {
   opacity: 0;
@@ -240,7 +223,6 @@ input[type=range] {
   opacity: 1;
 }
 
-/* Pastikan container gambar tetap konsisten rasionya */
 .product-img-container {
   position: relative;
   overflow: hidden;
@@ -248,27 +230,24 @@ input[type=range] {
   background-color: #f8f9fa;
 }
 
-/* Styling umum untuk Modal Detail */
 .product-detail-modal .modal-content {
     border-radius: 20px;
     overflow: hidden;
     border: none;
 }
 
-/* Khusus Tampilan Mobile (max-width: 576px) */
 @media (max-width: 576px) {
     .product-detail-modal .modal-dialog {
-        margin: 1rem; /* Memberikan jarak dari tepi layar */
+        margin: 1rem;
         display: flex;
         align-items: center;
         min-height: calc(100% - 3rem);
     }
 
     .product-detail-modal .modal-body {
-        padding: 1.5rem !important; /* Mengecilkan padding dalam */
+        padding: 1.5rem !important;
     }
 
-    /* Mengecilkan ukuran teks judul di mobile */
     .product-detail-modal h3 {
         font-size: 1.25rem;
         margin-top: 5px;
@@ -278,15 +257,11 @@ input[type=range] {
         border-radius: 12px;
     }
 
-    /* Merapatkan jarak antara harga coret dan harga utama */
     .product-detail-modal .fs-4 {
         font-size: 1.2rem !important;
     }
 }
 
-/* Styling Khusus Halaman Profil */
-
-/* Input yang bersih dan modern */
 .profile-input {
     background-color: #f8f9fa !important;
     border: 1px solid #eee !important;
@@ -302,7 +277,6 @@ input[type=range] {
     box-shadow: none !important;
 }
 
-/* Navigasi Sidebar */
 .profile-nav .nav-link {
     transition: all 0.3s ease;
     font-size: 0.95rem;
@@ -318,12 +292,10 @@ input[type=range] {
     background-color: #f0f0f0;
 }
 
-/* Ukuran font tambahan */
 .smaller {
     font-size: 0.75rem;
 }
 
-/* Responsivitas untuk Mobile */
 @media (max-width: 768px) {
     .profile-nav {
         display: flex;
@@ -341,12 +313,10 @@ input[type=range] {
     }
 }
 
-/* Container Utama Navigasi */
 .profile-nav-container {
     padding: 10px 0;
 }
 
-/* Item Menu Default */
 .menu-item, .active-menu {
     display: flex;
     align-items: center;
@@ -359,35 +329,76 @@ input[type=range] {
     border: 1px solid #f0f0f0;
     color: #444 !important;
     background: #fff;
-    height: 100%; /* Agar tinggi col sama */
+    height: 100%;
 }
 
-/* Menu yang sedang Aktif (Hitam seperti gambar) */
 .active-menu {
     background: #000 !important;
     color: #fff !important;
     border-color: #000;
 }
 
-/* Menu Keluar (Merah) */
 .logout-item {
     color: #dc3545 !important;
     border-color: #ffe5e5;
 }
 
-/* Hover Effect */
 .menu-item:hover {
     background: #f8f9fa;
     transform: translateY(-2px);
 }
 
-/* Penyesuaian Mobile */
 @media (max-width: 767px) {
     .menu-item span, .active-menu span {
-        font-size: 0.8rem; /* Teks sedikit lebih kecil di HP */
+        font-size: 0.8rem;
     }
     
     .profile-nav-container {
         margin-bottom: 20px;
     }
+}
+
+.custom-card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.custom-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+
+.custom-card:hover .product-img {
+  transform: scale(1.05);
+}
+
+.card-text {
+  line-height: 1.4;
+  color: #6c757d;
+}
+
+@media (min-width: 992px) {
+  .col-five {
+    flex: 0 0 auto;
+    width: 20% !important
+  }
+}
+
+@media (max-width: 576px) {
+  .custom-card .card-title {
+    font-size: 0.8rem !important;
+  }
+  .custom-card .btn {
+    font-size: 0.7rem;
+    padding: 5px;
+  }
+}
+
+.custom-card {
+  transition: all 0.3s ease;
+  background: #fff;
+}
+
+.custom-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.1) !important;
 }

@@ -6,11 +6,9 @@ const UnboxingPopup = () => {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // Mengecek apakah user sudah pernah melihat popup ini di session ini
     const hasSeenPopup = sessionStorage.getItem('hasSeenUnboxingPopup');
     
     if (!hasSeenPopup) {
-      // Memberikan sedikit delay agar tidak terlalu mengagetkan saat web dimuat
       const timer = setTimeout(() => setShow(true), 1500);
       return () => clearTimeout(timer);
     }
@@ -33,7 +31,6 @@ const UnboxingPopup = () => {
       </Modal.Header>
       
       <Modal.Body className="text-center px-4 pb-5">
-        {/* Lingkaran Logo/Ikon Atas */}
         <div className="d-flex justify-content-center mb-4">
           <div 
             className="rounded-circle d-flex align-items-center justify-content-center shadow-sm"
@@ -45,7 +42,6 @@ const UnboxingPopup = () => {
               border: '4px solid #f8f9fa'
             }}
           >
-            {/* Ganti dengan <img src="logo-kucing.png" /> jika ada filenya */}
             <span style={{ fontSize: '40px' }}>🐱</span>
           </div>
         </div>
@@ -56,7 +52,6 @@ const UnboxingPopup = () => {
           Jangan lupa untuk <strong>men-videokan ketika unboxing</strong>, sebagai bukti jika ada kesalahan atau kerusakan pada barang tersebut dan video tersebut menjadi syarat untuk <strong>men-claim nya</strong>.
         </p>
 
-        {/* Ilustrasi Langkah (Sesuai gambar watermarked_img_4808041116758619773.png) */}
         <div className="d-flex align-items-center justify-content-center gap-3 mb-4 py-3 bg-light rounded-3">
           <div className="text-center">
             <BoxSeam size={40} color="#0d6efd" />
