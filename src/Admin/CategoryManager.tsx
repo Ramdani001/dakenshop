@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Badge, Button, Spinner } from "react-bootstrap";
+import { Alert, Badge, Button, Spinner, Form, Modal } from "react-bootstrap";
 import {
   ArrowClockwise,
   Folder2Open,
@@ -17,6 +17,11 @@ interface MetaData {
   totalPages: number;
 }
 
+interface CategoryFormState {
+  label: string;
+  icon: File | null;
+}
+
 const CategoryManager: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [metadata, setMetadata] = useState<MetaData>({
@@ -28,19 +33,69 @@ const CategoryManager: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // --- STATE UNTUK CRUD MODAL ---
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [modalType, setModalType] = useState<"ADD" | "EDIT">("ADD");
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [formIsSubmitting, setFormIsSubmitting] = useState(false);
+
+  const [formValues, setFormValues] = useState<CategoryFormState>({
+    label: "",
+    icon: null,
+  });
+
+  const BASE_URL = "http://210.79.190.222:3005";
+
+  // Helper mengambil Bearer Token
+  const getCleanToken = () => {
+    const token = localStorage.getItem('token');
+    return token ? token.replace(/\s/g, '').replace(/['"]+/g, '') : '';
+  };
+
+  // Helper Format Tanggal & Waktu
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return (
+      <div style={{ fontSize: "13px", color: "#475569" }}>
+        <div className="fw-medium">
+          {date.toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          })}
+        </div>
+        <div className="text-muted" style={{ fontSize: "11px" }}>
+          {date.toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}{" "}
+          WIB
+        </div>
+      </div>
+    );
+  };
+
+  // 1. READ: Ambil Data Kategori
   const fetchCategories = useCallback(async (page = 1, limit = 10) => {
     setIsLoading(true);
     setError(null);
     try {
       const response = await fetch(
-        `http://210.79.190.222:3005/api/categories?page=${page}&limit=${limit}`,
+        `${BASE_URL}/api/categories?page=${page}&limit=${limit}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
 
       if (!response.ok) throw new Error("Gagal mengambil data dari server");
 
       const result = await response.json();
-      setCategories(result.data);
-      setMetadata(result.meta);
+      setCategories(result.data || []);
+      setMetadata(result.meta || { total: 0, page: 1, limit: 10, totalPages: 1 });
     } catch (err: any) {
       setError(err.message || "Terjadi kesalahan koneksi");
     } finally {
@@ -52,91 +107,161 @@ const CategoryManager: React.FC = () => {
     fetchCategories();
   }, [fetchCategories]);
 
+  // --- HANDLER MODAL TRIGGER ---
+  const handleOpenAddModal = () => {
+    setModalType("ADD");
+    setFormValues({ label: "", icon: null });
+    setSelectedCategory(null);
+    setShowFormModal(true);
+  };
+
+  const handleOpenEditModal = (cat: Category) => {
+    setModalType("EDIT");
+    setSelectedCategory(cat);
+    setFormValues({ label: cat.label, icon: null }); // Icon dikosongkan kecuali ingin ganti baru
+    setShowFormModal(true);
+  };
+
+  const handleOpenDeleteModal = (cat: Category) => {
+    setSelectedCategory(cat);
+    setShowDeleteModal(true);
+  };
+
+  // 2. CREATE & UPDATE: Submit Handler (Menggunakan FormData karena ada upload icon)
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormIsSubmitting(true);
+
+    try {
+      const url = modalType === "ADD" 
+        ? `${BASE_URL}/api/categories` 
+        : `${BASE_URL}/api/categories/${selectedCategory?.id}`;
+        
+      const method = modalType === "ADD" ? "POST" : "PUT";
+
+      const formData = new FormData();
+      formData.append("label", formValues.label);
+      if (formValues.icon) {
+        // DIUBAH: Menggunakan key "icon" agar sesuai dengan upload.single("icon") di backend
+        formData.append("icon", formValues.icon); 
+      }
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          // DIUBAH: Menambahkan otentikasi token Bearer untuk ADMIN
+          "Authorization": `Bearer ${getCleanToken()}`,
+          // Jangan tambahkan Content-Type di sini jika menggunakan FormData
+        },
+        body: formData, 
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || "Terjadi kesalahan sistem.");
+
+      setShowFormModal(false);
+      fetchCategories(metadata.page, metadata.limit);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setFormIsSubmitting(false);
+    }
+  };
+
+  // 3. DELETE: Action Handler
+  const handleDeleteSubmit = async () => {
+    if (!selectedCategory) return;
+    setFormIsSubmitting(true);
+
+    try {
+      const response = await fetch(`${BASE_URL}/api/categories/${selectedCategory.id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${getCleanToken()}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      // 1. Cek jika statusnya No Content (240 / 204), langsung sukseskan tanpa parse JSON
+      if (response.status === 204 || response.status === 201) {
+        setShowDeleteModal(false);
+        fetchCategories(1, metadata.limit);
+        return;
+      }
+
+      // 2. Ambil teks mentah dulu untuk menghindari crash parsing jika backend mengirim string kosong
+      const responseText = await response.text();
+      let result: any = {};
+      if (responseText) {
+        result = JSON.parse(responseText);
+      }
+
+      // 3. Jika status HTTP error (400, 404, 500, dll)
+      if (!response.ok) {
+        throw new Error(result.message || "Gagal menghapus kategori.");
+      }
+
+      // Sukses
+      setShowDeleteModal(false);
+      fetchCategories(1, metadata.limit);
+    } catch (err: any) {
+      console.error("Delete Error:", err);
+      alert(err.message || "Terjadi kesalahan saat menghapus data");
+    } finally {
+      setFormIsSubmitting(false);
+    }
+  };
+
+  // Struktur Kolom Tabel Sesuai Permintaan Anda
   const columns: ColumnDef<Category>[] = [
     {
       key: "label",
-      label: "Category",
+      label: "Label",
       sortable: true,
-      filterable: true,
       render: (cat: Category) => (
-        <div className="d-flex align-items-center gap-3">
-          <div
-            className="bg-light rounded d-flex align-items-center justify-content-center"
-            style={{
-              width: "40px",
-              height: "40px",
-              border: "1px solid #F1F5F9",
-            }}
-          >
-            {cat.iconUrl ? (
-              <img
-                src={"http://210.79.190.222:3005/" + cat.iconUrl}
-                alt={cat.label}
-                style={{ width: "24px", objectFit: "contain" }}
-              />
-            ) : (
-              <Folder2Open className="text-primary" size={20} />
-            )}
+        <div>
+          <div className="fw-bold text-dark" style={{ fontSize: "14px" }}>
+            {cat.label}
           </div>
-          <div>
-            <div className="fw-bold text-dark" style={{ fontSize: "14px" }}>
-              {cat.label}
-            </div>
-            <div
-              className="text-muted"
-              style={{ fontSize: "10px", fontFamily: "monospace" }}
-            >
-              {cat.id}
-            </div>
+          <div className="text-muted" style={{ fontSize: "10px", fontFamily: "monospace" }}>
+            {cat.id}
           </div>
         </div>
       ),
     },
     {
-      key: "_count",
-      label: "Product Used",
-      sortable: true,
+      key: "iconUrl",
+      label: "Icon",
       align: "center",
       render: (cat: Category) => (
-        <Badge
-          bg="info"
-          className="fw-bold px-3 py-2"
-          style={{
-            fontSize: "11px",
-            backgroundColor: "#E0F2FE !important",
-            color: "#0369A1",
-            border: "1px solid #BAE6FD",
-          }}
+        <div
+          className="bg-light rounded d-flex align-items-center justify-content-center border shadow-sm mx-auto"
+          style={{ width: "40px", height: "40px" }}
         >
-          {cat._count.products} Product
-        </Badge>
+          {cat.iconUrl ? (
+            <img
+              src={`${BASE_URL}${cat.iconUrl}`}
+              alt={cat.label}
+              style={{ width: "24px", height: "24px", objectFit: "contain" }}
+              onError={(e) => { (e.target as HTMLImageElement).src = "https://via.placeholder.com/40"; }}
+            />
+          ) : (
+            <Folder2Open className="text-primary" size={20} />
+          )}
+        </div>
       ),
     },
     {
       key: "createdAt",
       label: "Created",
       sortable: true,
-      render: (cat: Category) => {
-        const date = new Date(cat.createdAt);
-        return (
-          <div style={{ fontSize: "13px", color: "#475569" }}>
-            <div className="fw-medium">
-              {date.toLocaleDateString("id-ID", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              })}
-            </div>
-            <div className="text-muted" style={{ fontSize: "11px" }}>
-              {date.toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}{" "}
-              WIB
-            </div>
-          </div>
-        );
-      },
+      render: (cat: Category) => formatDateTime(cat.createdAt),
+    },
+    {
+      key: "updatedAt",
+      label: "Updated",
+      sortable: true,
+      render: (cat: Category) => formatDateTime(cat.updatedAt || cat.createdAt),
     },
     {
       key: "action",
@@ -149,6 +274,7 @@ const CategoryManager: React.FC = () => {
             variant="white"
             size="sm"
             className="border shadow-sm hover-primary"
+            onClick={() => handleOpenEditModal(cat)}
           >
             <PencilSquare size={14} className="text-primary" />
           </Button>
@@ -156,6 +282,7 @@ const CategoryManager: React.FC = () => {
             variant="white"
             size="sm"
             className="border shadow-sm hover-danger"
+            onClick={() => handleOpenDeleteModal(cat)}
           >
             <Trash3 size={14} className="text-danger" />
           </Button>
@@ -168,15 +295,9 @@ const CategoryManager: React.FC = () => {
     <div className="fade-in">
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div>
-          <h4
-            className="fw-bold m-0"
-            style={{ letterSpacing: "-1px", color: "#0F172A" }}
-          >
-            Category
+          <h4 className="fw-bold m-0" style={{ letterSpacing: "-1px", color: "#0F172A" }}>
+            Category Management
           </h4>
-          <p className="text-muted small m-0">
-            test
-          </p>
         </div>
         <div className="d-flex gap-2">
           <Button
@@ -188,6 +309,7 @@ const CategoryManager: React.FC = () => {
             <ArrowClockwise className={isLoading ? "spin" : ""} /> Refresh
           </Button>
           <Button
+            onClick={handleOpenAddModal}
             className="d-flex align-items-center gap-2 px-3 shadow-sm"
             style={{
               backgroundColor: "#2563EB",
@@ -202,10 +324,7 @@ const CategoryManager: React.FC = () => {
       </div>
 
       {error && (
-        <Alert
-          variant="danger"
-          className="border-0 shadow-sm d-flex align-items-center gap-3"
-        >
+        <Alert variant="danger" className="border-0 shadow-sm d-flex align-items-center gap-3">
           <div style={{ fontSize: "20px" }}>⚠️</div>
           <div>{error}</div>
         </Alert>
@@ -220,15 +339,10 @@ const CategoryManager: React.FC = () => {
           border: "1px solid #E2E8F0",
         }}
       >
-        {isLoading ? (
-          <div
-            className="d-flex flex-column align-items-center justify-content-center"
-            style={{ height: "400px" }}
-          >
+        {isLoading && categories.length === 0 ? (
+          <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: "400px" }}>
             <Spinner animation="border" variant="primary" />
-            <div className="mt-3 text-muted fw-medium">
-              Loading...
-            </div>
+            <div className="mt-3 text-muted fw-medium">Loading...</div>
           </div>
         ) : (
           <TableComponent
@@ -243,6 +357,79 @@ const CategoryManager: React.FC = () => {
           />
         )}
       </div>
+
+      {/* =========================================================
+          MODAL FORM: TAMBAH / EDIT KATEGORI
+          ========================================================= */}
+      <Modal show={showFormModal} onHide={() => !formIsSubmitting && setShowFormModal(false)} centered backdrop="static">
+        <Modal.Header closeButton={!formIsSubmitting}>
+          <Modal.Title className="fw-bold h5">
+            {modalType === "ADD" ? "Tambah Kategori Baru" : "Edit Informasi Kategori"}
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleFormSubmit}>
+          <Modal.Body>
+            <Form.Group className="mb-3">
+              <Form.Label className="small fw-semibold text-secondary">Nama Kategori (Label)</Form.Label>
+              <Form.Control
+                type="text"
+                required
+                value={formValues.label}
+                onChange={(e) => setFormValues({ ...formValues, label: e.target.value })}
+                placeholder="Masukkan nama kategori baru..."
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-2">
+              <Form.Label className="small fw-semibold text-secondary">Icon Gambar</Form.Label>
+              <Form.Control
+                type="file"
+                accept="image/*"
+                required={modalType === "ADD"} 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setFormValues({ ...formValues, icon: e.target.files[0] });
+                  }
+                }}
+              />
+              {modalType === "EDIT" && selectedCategory?.iconUrl && (
+                <Form.Text className="text-muted d-block mt-1">
+                  * Kosongkan berkas jika tidak ingin mengubah icon saat ini.
+                </Form.Text>
+              )}
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer className="bg-light">
+            <Button variant="secondary" onClick={() => setShowFormModal(false)} disabled={formIsSubmitting} className="fw-semibold">
+              Batal
+            </Button>
+            <Button variant="primary" type="submit" disabled={formIsSubmitting} className="fw-semibold px-4">
+              {formIsSubmitting ? <Spinner animation="border" size="sm" /> : modalType === "ADD" ? "Simpan Kategori" : "Simpan Perubahan"}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      {/* =========================================================
+          MODAL KONFIRMASI: HAPUS KATEGORI
+          ========================================================= */}
+      <Modal show={showDeleteModal} onHide={() => !formIsSubmitting && setShowDeleteModal(false)} centered size="sm">
+        <Modal.Body className="text-center p-4">
+          <div className="text-danger mb-3" style={{ fontSize: "40px" }}>🚨</div>
+          <h6 className="fw-bold text-dark">Hapus Kategori?</h6>
+          <p className="text-muted small mb-4">
+            Kategori <strong>{selectedCategory?.label}</strong> beserta seluruh relasinya akan dihapus secara permanen.
+          </p>
+          <div className="d-flex gap-2 justify-content-center">
+            <Button variant="light" className="border fw-semibold w-50" onClick={() => setShowDeleteModal(false)} disabled={formIsSubmitting}>
+              Batal
+            </Button>
+            <Button variant="danger" className="fw-semibold w-50" onClick={handleDeleteSubmit} disabled={formIsSubmitting}>
+              {formIsSubmitting ? <Spinner animation="border" size="sm" /> : "Ya, Hapus"}
+            </Button>
+          </div>
+        </Modal.Body>
+      </Modal>
 
       <style>{`
         .spin { animation: rotate 1s linear infinite; }

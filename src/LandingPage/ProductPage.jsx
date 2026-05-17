@@ -1,90 +1,173 @@
-import React, { useState } from 'react';
-import { Container, Row, Col, Card, Button, Nav, Breadcrumb, Pagination, Offcanvas, Carousel, Modal } from 'react-bootstrap';
-import { Funnel } from 'react-bootstrap-icons';
+import React, { useState, useEffect } from 'react';
+import { Container, Row, Col, Card, Button, Nav, Breadcrumb, Offcanvas, Carousel, Modal, Spinner } from 'react-bootstrap';
+import { Funnel, BoxSeam } from 'react-bootstrap-icons';
 
 const ProductsPage = () => {
+  const API_URL = 'http://210.79.190.222:3005';
+
+  // --- STATE UTAMA ---
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]); // Menampung kategori dari database
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // --- STATE UI ---
   const [showFilter, setShowFilter] = useState(false);
-  const [filter, setFilter] = useState("Semua"); // State untuk kategori aktif
+  const [filter, setFilter] = useState("Semua"); // ID Kategori terpilih atau string "Semua"
+  const [filterLabel, setFilterLabel] = useState("Semua"); // Nama teks kategori terpilih
   const [showDetail, setShowDetail] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [quantity, setQuantity] = useState(1);
+  const [selectedVariant, setSelectedVariant] = useState(null); // Menyimpan objek varian yang aktif di-klik
 
   const handleClose = () => setShowFilter(false);
   const handleShowFil = () => setShowFilter(true);
-  
-  const [selectedVariant, setSelectedVariant] = useState(null);
 
-  const products = [
-    { 
-      id: 1, 
-      name: "BOLA TERAPI", 
-      price: "100.000",
-      category: "Aksesoris",
-      originalPrice: "150.000",
-      variants: "1",
-      images: ["images/bola_terapi/bola_terapi_1.png","images/bola_terapi/gambar 2.png","images/bola_terapi/bola_terapi_3.png","images/bola_terapi/bola_terapi_4.png"]
-    },
-    { 
-      id: 2, 
-      name: "Charcoal", 
-      price: "149.000",
-      category: "Aksesoris",
-      originalPrice: "199.000",
-      variants: ["1","2"],
-      images: ["images/charcoal/charcoal_1.png","images/charcoal/charcoal_2.png","images/charcoal/charcoal_3.png","images/charcoal/charcoal_4.png"] 
-    },
-    { 
-      id: 3, 
-      name: "Tas Selempang Kanvas", 
-      price: "80.000",
-      category: "Aksesoris",
-      originalPrice: "100.000",
-      variants: ["1","2","3",""],
-      images: ["images/pemeras_buah/pemeras_buah_1.png","images/pemeras_buah/pemeras_buah_2.png","images/pemeras_buah/pemeras_buah_3.png","images/pemeras_buah/pemeras_buah_4.png"] 
-    },
-    { 
-      id: 4, 
-      name: "Kaos DakenShop Logo White", 
-      price: "149.000",
-      category: "Pakaian Pria",
-      originalPrice: "",
-      variants: [""],
-      images: ["images/alumunium/alumunium_1.png","images/alumunium/alumunium_2.png","images/alumunium/alumunium_3.png","images/alumunium/alumunium_4.png"]
-    },
-  ];
+  // --- FETCH DATA DARI API ---
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Ambil data produk dan kategori secara bersamaan
+      const [resProducts, resCategories] = await Promise.all([
+        fetch(`${API_URL}/api/products?page=1&limit=100`),
+        fetch(`${API_URL}/api/categories?page=1&limit=100`)
+      ]);
 
-  const variants = [
-    { id: 1, name: 'Biru', colorCode: '#00AEEF' },
-    { id: 2, name: 'Kuning', colorCode: '#FFD700' },
-    { id: 3, name: 'Pink', colorCode: '#FF69B4' },
-  ];
+      if (!resProducts.ok) throw new Error('Gagal mengambil data produk');
+      if (!resCategories.ok) throw new Error('Gagal mengambil data kategori');
 
+      const dataProducts = await resProducts.json();
+      const dataCategories = await resCategories.json();
+
+      // Ambil array dari property .data bawaan API pagination kamu
+      setProducts(dataProducts.data || []);
+      setCategories(dataCategories.data || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // --- LOGIKA FILTER BERDASARKAN CATEGORY_ID ---
   const filteredProducts = filter === "Semua" 
     ? products 
-    : products.filter(p => p.category === filter);
+    : products.filter(p => p.categoryId === filter);
 
+  // --- LOGIKA DETAIL MODAL & ADD TO CART ---
   const handleOpenDetail = (product) => {
     setSelectedProduct(product);
-    setQuantity(1);
+    // Otomatis arahkan ke varian pertama produk sebagai pilihan default awal
+    if (product.types && product.types.length > 0) {
+      setSelectedVariant(product.types[0]);
+    } else {
+      setSelectedVariant(null);
+    }
     setShowDetail(true);
   };
 
+  const handleAddToCart = () => {
+    if (!selectedProduct || !selectedVariant) {
+      alert("Silakan pilih varian produk terlebih dahulu.");
+      return;
+    }
+
+    // 1. Dapatkan ID User login unik dari localStorage untuk memisahkan data keranjang
+    let userId = "guest";
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        userId = parsedUser.id || parsedUser.uuid || "guest";
+      }
+    } catch (e) {
+      console.error("Gagal membaca session data user:", e);
+    }
+
+    const cartKey = `cart_${userId}`;
+
+    // 2. Hitung harga final setelah dipotong diskon database
+    const originalPrice = Number(selectedVariant.price) || 0;
+    const discountPercent = Number(selectedProduct.discountPercentage) || 0;
+    const priceAfterDiscount = originalPrice * (1 - discountPercent / 100);
+
+    // 3. Buat rancangan objek item keranjang
+    const cartItem = {
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
+      imgUrl: selectedProduct.imgUrl,
+      variantId: selectedVariant.id,
+      variantType: selectedVariant.type,
+      originalPrice: originalPrice,
+      discountPercentage: discountPercent,
+      priceAfterDiscount: priceAfterDiscount,
+      quantity: 1
+    };
+
+    // 4. Ambil database keranjang lama di localStorage berdasarkan user key
+    let currentCart = [];
+    try {
+      const existingCart = localStorage.getItem(cartKey);
+      if (existingCart) currentCart = JSON.parse(existingCart);
+    } catch (e) {
+      currentCart = [];
+    }
+
+    // Cek duplikasi: Apakah produk + varian tipe yang sama sudah ada di keranjang?
+    const existingItemIndex = currentCart.findIndex(
+      (item) => item.productId === cartItem.productId && item.variantId === cartItem.variantId
+    );
+
+    if (existingItemIndex > -1) {
+      // Jika kembar, cukup naikkan kuantitas pemesanan barangnya saja
+      currentCart[existingItemIndex].quantity += 1;
+    } else {
+      // Jika kombinasi item baru, masukkan data baru ke dalam array list
+      currentCart.push(cartItem);
+    }
+
+    // 5. Simpan kembali array data baru ke localStorage
+    localStorage.setItem(cartKey, JSON.stringify(currentCart));
+    alert(`Berhasil menambahkan "${selectedProduct.name} (${selectedVariant.type})" ke dalam keranjang belanja!`);
+  };
+
+  // --- SIDEBAR FILTER DINAMIS ---
   const FilterContent = () => (
     <div className="filter-sidebar-content text-start">
       <div className="mb-4">
         <span className="filter-label fw-bold d-block mb-3 border-bottom pb-2 text-uppercase" style={{ fontSize: '0.85rem', letterSpacing: '1px' }}>Kategori</span>
         <Nav className="flex-column">
-          {['Semua', 'Pakaian Pria', 'Aksesoris', 'Pakaian Rage Shop', 'Pakaian Rada'].map((item) => (
+          {/* Tombol Reset Semua */}
+          <Nav.Link 
+            className={`filter-link ps-0 ${filter === "Semua" ? 'fw-bold text-danger' : 'text-dark'}`}
+            style={{ fontSize: '0.95rem', cursor: 'pointer' }}
+            onClick={() => {
+              setFilter("Semua");
+              setFilterLabel("Semua");
+              handleClose();
+            }}
+          >
+            Semua
+          </Nav.Link>
+
+          {/* List Kategori dari DB */}
+          {categories.map((cat) => (
             <Nav.Link 
-              key={item} 
-              className={`filter-link ps-0 ${filter === item ? 'fw-bold text-danger' : 'text-dark'}`}
-              style={{ fontSize: '0.95rem' }}
+              key={cat.id} 
+              className={`filter-link ps-0 ${filter === cat.id ? 'fw-bold text-danger' : 'text-dark'}`}
+              style={{ fontSize: '0.95rem', cursor: 'pointer' }}
               onClick={() => {
-                setFilter(item);
+                setFilter(cat.id);        // Filter menggunakan categoryId (string UUID)
+                setFilterLabel(cat.label); // Tampilkan nama asli kategori di judul halaman
                 handleClose();
               }}
             >
-              {item}
+              {cat.label}
             </Nav.Link>
           ))}
         </Nav>
@@ -92,242 +175,201 @@ const ProductsPage = () => {
     </div>
   );
 
+  if (loading) {
+    return (
+      <Container className="d-flex flex-column justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
+        <Spinner animation="grow" variant="primary" />
+        <span className="mt-3 fw-bold text-muted">Menghubungkan ke DakenShop...</span>
+      </Container>
+    );
+  }
+
   return (
-    <div className="products-page min-vh-100 d-flex flex-column">
-      <Container className="mt-5 pt-4 flex-grow-1">
-        <div className="d-flex justify-content-between align-items-center mb-4">
+    <div className="products-page min-vh-100 d-flex flex-column" style={{ paddingTop: '100px', backgroundColor: '#f8f9fa' }}>
+      <Container className="flex-grow-1">
+        
+        {/* Top Navbar Info */}
+        <div className="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded-3 shadow-sm">
           <Breadcrumb className="mb-0">
             <Breadcrumb.Item href="/">Beranda</Breadcrumb.Item>
             <Breadcrumb.Item active>All Produk</Breadcrumb.Item>
           </Breadcrumb>
 
-          <Button 
-            variant="outline-dark" 
-            className="d-lg-none d-flex align-items-center gap-2" 
-            onClick={handleShowFil}
-          >
+          <Button variant="outline-dark" className="d-lg-none d-flex align-items-center gap-2" onClick={handleShowFil}>
             <Funnel /> Filter
           </Button>
         </div>
 
         <Row className="g-4">
-          <Col lg={3} className="d-none d-lg-block border-end pe-4">
-            <FilterContent />
+          {/* Sidebar Filter Kategori (Desktop) */}
+          <Col lg={3} className="d-none d-lg-block">
+            <div className="bg-white p-4 rounded-3 shadow-sm sticky-top" style={{ top: '120px' }}>
+              <FilterContent />
+            </div>
           </Col>
 
+          {/* Grid Konten Produk */}
           <Col lg={9} xs={12}>
-            <div className="mb-3">
-              <h5 className="fw-bold mb-0">Menampilkan: {filter}</h5>
-              <small className="text-muted">{filteredProducts.length} Produk ditemukan</small>
-            </div>
-            
-            <Row className="g-3">
-              {filteredProducts.map((product) => (
-                <Col key={product.id} lg={4} md={6} xs={6} className="mb-4">
-                  <Card className="product-card shadow-sm h-100 border-0 overflow-hidden" onClick={() => handleOpenDetail(product)}>
-                    <div className="product-img-container" style={{ cursor: 'pointer' }}>
-                      <Carousel interval={null} indicators={false} variant="dark">
-                        {product.images?.map((imgSrc, index) => (
-                          <Carousel.Item key={index}>
-                            <img 
-                              src={imgSrc} 
-                              className="d-block w-100" 
-                              style={{ aspectRatio: '1/1', objectFit: 'cover' }} 
-                              alt={product.name} 
-                            />
-                          </Carousel.Item>
-                        ))}
-                      </Carousel>
-                    </div>
-
-                    <Card.Body className="p-2 p-md-3 text-center d-flex flex-column">
-                      <Card.Title className="product-title mb-1 text-uppercase fw-bold" style={{ fontSize: '0.85rem' }}>
-                        {product.name}
-                      </Card.Title>
-                      
-                      <div className="product-price-wrapper mb-2">
-                        {product.originalPrice && (
-                          <span className="text-danger text-decoration-line-through me-2" style={{ fontSize: '0.75rem' }}>
-                            Rp {product.originalPrice}
-                          </span>
-                        )}
-                        <span className="fw-bold text-dark" style={{ fontSize: '0.95rem' }}>
-                          Rp {product.price}
-                        </span>
-                      </div>
-
-                      {/* --- LOGIKA MAPPING VARIAN --- */}
-                      <div className="d-flex justify-content-center gap-1 mb-3" style={{ minHeight: '12px' }}>
-                        {/* 1. Jika varian adalah Array (Contoh: Charcoal, Tas Selempang) */}
-                        {Array.isArray(product.variants) ? (
-                          product.variants.map((variantId) => {
-                            const colorDetail = variants.find(v => v.id === parseInt(variantId));
-                            return colorDetail ? (
-                              <div
-                                key={variantId}
-                                style={{
-                                  width: '12px',
-                                  height: '12px',
-                                  backgroundColor: colorDetail.colorCode,
-                                  borderRadius: '50%',
-                                  border: '1px solid #ddd'
-                                }}
-                                title={colorDetail.name}
-                              />
-                            ) : null;
-                          })
-                        ) : (
-                          /* 2. Jika varian adalah String Tunggal (Contoh: BOLA TERAPI) */
-                          (() => {
-                            const colorDetail = variants.find(v => v.id === parseInt(product.variants));
-                            return colorDetail ? (
-                              <div
-                                style={{
-                                  width: '12px',
-                                  height: '12px',
-                                  backgroundColor: colorDetail.colorCode,
-                                  borderRadius: '50%',
-                                  border: '1px solid #ddd'
-                                }}
-                                title={colorDetail.name}
-                              />
-                            ) : null;
-                          })()
-                        )}
-                      </div>
-
-                      <Button variant="outline-dark" className="mt-auto btn-sm fw-bold py-2 rounded-3">
-                        Add to Cart
-                      </Button>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-
-            {filteredProducts.length > 0 && (
-              <div className="d-flex justify-content-center mt-5">
-                <Pagination>
-                  <Pagination.Prev disabled />
-                  <Pagination.Item active>{1}</Pagination.Item>
-                  <Pagination.Item>{2}</Pagination.Item>
-                  <Pagination.Next />
-                </Pagination>
+            {error ? (
+              <div className="alert alert-danger p-4 text-center rounded-3">
+                <h5>Oops! Terjadi Kesalahan</h5>
+                <p>{error}</p>
+                <Button variant="danger" onClick={fetchData}>Coba Lagi</Button>
               </div>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <h4 className="fw-bold mb-1">Kategori: {filterLabel}</h4>
+                  <p className="text-muted">{filteredProducts.length} Produk ditemukan</p>
+                </div>
+
+                {filteredProducts.length > 0 ? (
+                  <Row className="g-3">
+                    {filteredProducts.map((product) => {
+                      // Ambil harga dasar awal produk dari varian pertama untuk katalog utama depan
+                      const basePrice = product.types && product.types.length > 0 ? Number(product.types[0].price) : 0;
+                      const discountPercent = Number(product.discountPercentage) || 0;
+                      const finalCatalogPrice = basePrice * (1 - discountPercent / 100);
+
+                      return (
+                        <Col key={product.id} lg={4} md={6} xs={6} className="mb-4">
+                          <Card className="product-card shadow-sm h-100 border-0 overflow-hidden" onClick={() => handleOpenDetail(product)} style={{ cursor: 'pointer', transition: '0.3s' }}>
+                            <div className="product-img-container position-relative">
+                              {discountPercent > 0 && (
+                                <span className="position-absolute badge bg-danger m-2 top-0 start-0 z-2 rounded-pill">
+                                  -{discountPercent}%
+                                </span>
+                              )}
+                              {product.imgUrl ? (
+                                <img src={`${API_URL}${product.imgUrl}`} className="d-block w-100" style={{ aspectRatio: '1/1', objectFit: 'cover' }} alt={product.name} />
+                              ) : (
+                                <div className="d-flex align-items-center justify-content-center bg-light text-secondary" style={{ aspectRatio: '1/1' }}>
+                                  <BoxSeam size={40} />
+                                </div>
+                              )}
+                            </div>
+                            <Card.Body className="p-3 text-center d-flex flex-column">
+                              <Card.Title className="mb-1 text-uppercase fw-bold" style={{ fontSize: '0.85rem' }}>{product.name}</Card.Title>
+                              <div className="mb-2 d-flex flex-column align-items-center">
+                                {discountPercent > 0 && (
+                                  <span className="text-muted text-decoration-line-through small">
+                                    Rp {basePrice.toLocaleString("id-ID")}
+                                  </span>
+                                )}
+                                <span className="fw-bold text-primary">
+                                  Rp {finalCatalogPrice.toLocaleString("id-ID")}
+                                </span>
+                              </div>
+                              <Button variant="dark" className="mt-auto btn-sm fw-bold rounded-pill">Detail Produk</Button>
+                            </Card.Body>
+                          </Card>
+                        </Col>
+                      );
+                    })}
+                  </Row>
+                ) : (
+                  <div className="text-center py-5 bg-white rounded-3 shadow-sm mt-2">
+                    <BoxSeam size={60} className="text-muted mb-3" />
+                    <h5 className="fw-bold">Produk Belum Tersedia</h5>
+                    <p className="text-muted">Maaf, saat ini belum ada produk untuk kategori <strong>{filterLabel}</strong>.</p>
+                    <Button variant="outline-primary" onClick={() => { setFilter("Semua"); setFilterLabel("Semua"); }}>Lihat Semua Produk</Button>
+                  </div>
+                )}
+              </>
             )}
           </Col>
         </Row>
       </Container>
 
-      {/* Filter Mobile */}
+      {/* --- OFFCANVAS FILTER (MOBILE) --- */}
       <Offcanvas show={showFilter} onHide={handleClose} placement="start">
-        <Offcanvas.Header closeButton>
-          <Offcanvas.Title className="fw-bold">FILTER PRODUK</Offcanvas.Title>
-        </Offcanvas.Header>
-        <Offcanvas.Body>
-          <FilterContent />
-        </Offcanvas.Body>
+        <Offcanvas.Header closeButton><Offcanvas.Title className="fw-bold">FILTER</Offcanvas.Title></Offcanvas.Header>
+        <Offcanvas.Body><FilterContent /></Offcanvas.Body>
       </Offcanvas>
 
-      {/* Detail Produk Modal */}
-      <Modal show={showDetail} onHide={() => setShowDetail(false)} size="lg" centered className='product-detail-modal'>
-        <Modal.Body className="p-0 overflow-hidden">
-          <Button 
-            variant="light" 
-            onClick={() => setShowDetail(false)}
-            className="position-absolute end-0 top-0 m-3 z-3 rounded-circle shadow-sm p-0 d-flex align-items-center justify-content-center"
-            style={{ width: '35px', height: '35px' }}
-          > ✕ </Button>
-          
+      {/* --- MODAL DETAIL PRODUK INTERAKTIF --- */}
+      <Modal show={showDetail} onHide={() => setShowDetail(false)} size="lg" centered>
+        <Modal.Body className="p-0">
+          <Button variant="light" onClick={() => setShowDetail(false)} className="position-absolute end-0 top-0 m-3 z-3 rounded-circle" style={{ width: '35px', height: '35px', border: '1px solid #ddd' }}>✕</Button>
           {selectedProduct && (
-            <Row className="g-0 bg-white rounded-4 overflow-hidden border">
-             <Col md={6} className="d-flex flex-column justify-content-center border-end bg-light">
-                <Carousel indicators={true} interval={null} variant="dark" className="w-100">
-                  {selectedProduct.images?.map((img, idx) => (
-                    <Carousel.Item key={idx}>
-                      <div style={{ aspectRatio: '1/1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <img src={img} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="variant" />
-                      </div>
-                    </Carousel.Item>
-                  ))}
-                </Carousel>
+            <Row className="g-0">
+              <Col md={6} className="bg-light d-flex align-items-center justify-content-center" style={{ minHeight: '350px' }}>
+                {selectedProduct.imgUrl ? (
+                  <img src={`${API_URL}${selectedProduct.imgUrl}`} className="w-100 h-100" style={{ aspectRatio: '1/1', objectFit: 'contain', padding: '20px' }} alt="detail" />
+                ) : (
+                  <div className="text-secondary py-5"><BoxSeam size={80} /></div>
+                )}
               </Col>
-
-              <Col md={6}>
-                <div className="p-4 d-flex flex-column h-100">
-                  <h4 className="fw-bold text-uppercase mb-2">{selectedProduct.name}</h4>
+              <Col md={6} className="p-4 d-flex flex-column justify-content-between">
+                <div>
+                  <h4 className="fw-bold text-dark mb-1 text-uppercase">{selectedProduct.name}</h4>
+                  <p className="text-muted small mb-3" style={{ lineHeight: '1.5' }}>{selectedProduct.description || "Tidak ada deskripsi produk."}</p>
                   
-                  <div className="mb-3">
-                    <span className="text-danger fw-bold fs-3 me-2">Rp {selectedProduct.price}</span>
-                    {selectedProduct.originalPrice && (
-                      <small className="text-muted text-decoration-line-through">Rp {selectedProduct.originalPrice}</small>
+                  {/* BOX DINAMIS PERHITUNGAN HARGA POTONG DISKON */}
+                  <div className="bg-light p-3 rounded-3 mb-4 border">
+                    {selectedVariant ? (
+                      <>
+                        <div className="d-flex align-items-center gap-2 mb-1">
+                          {/* Harga Varian Asli Dicoret */}
+                          <span className="text-muted text-decoration-line-through" style={{ fontSize: '1rem' }}>
+                            Rp {Number(selectedVariant.price).toLocaleString("id-ID")}
+                          </span>
+                          {/* Persentase Diskon Statis/Dinamis dari DB */}
+                          <span className="badge bg-danger rounded-pill" style={{ fontSize: '0.75rem' }}>
+                            -{Number(selectedProduct.discountPercentage)}%
+                          </span>
+                        </div>
+                        {/* Hasil Harga Potong Diskon Akhir */}
+                        <h2 className="text-danger fw-extrabold m-0" style={{ fontWeight: '800' }}>
+                          Rp {(Number(selectedVariant.price) * (1 - Number(selectedProduct.discountPercentage) / 100)).toLocaleString("id-ID")}
+                        </h2>
+                      </>
+                    ) : (
+                      <h3 className="text-muted m-0" style={{ fontSize: '1.1rem' }}>Pilih variasi produk di bawah</h3>
                     )}
                   </div>
-
-                  <p className="text-muted small mb-4" style={{ lineHeight: '1.6' }}>
-                    Produk berkualitas tinggi dari DakenShop. Didesain untuk kenyamanan dan gaya maksimal bagi penggunanya. Material premium yang tahan lama.
-                  </p>
-
-                  <div className="mb-4 d-flex align-items-end gap-4">
-                      {/* BAGIAN QUANTITY */}
-                      <div>
-                        <label className="fw-bold small d-block mb-2 text-muted text-uppercase">
-                          Jumlah
-                        </label>
-                        <div className="d-flex align-items-center bg-light rounded-3 p-1 border" style={{ width: 'fit-content' }}>
-                          <Button variant="white" size="sm" className="rounded-circle border shadow-sm" onClick={() => setQuantity(Math.max(1, quantity - 1))}> - </Button>
-                          <span className="px-3 fw-bold">{quantity}</span>
-                          <Button variant="white" size="sm" className="rounded-circle border shadow-sm" onClick={() => setQuantity(quantity + 1)}> + </Button>
-                        </div>
-                      </div>
-
-                      {/* BAGIAN VARIANT (Di Samping) */}
-                      <div className="flex-grow-1">
-                        <label className="fw-bold small d-block mb-2 text-muted text-uppercase">
-                          Warna: <span className="text-dark">{selectedVariant?.name || "Pilih"}</span>
-                        </label>
-                        
-                        <div className="d-flex gap-2">
-                          {(Array.isArray(selectedProduct.variants) ? selectedProduct.variants : [selectedProduct.variants]).map((vId) => {
-                            const colorDetail = variants.find(v => v.id === parseInt(vId));
-                            if (!colorDetail) return null;
-
-                            return (
-                              <div
-                                key={vId}
-                                onClick={() => setSelectedVariant(colorDetail)}
-                                style={{
-                                  width: '35px',
-                                  height: '35px',
-                                  backgroundColor: colorDetail.colorCode,
-                                  borderRadius: '50%',
-                                  cursor: 'pointer',
-                                  border: selectedVariant?.id === colorDetail.id ? '3px solid #000' : '2px solid #ddd',
-                                  outline: selectedVariant?.id === colorDetail.id ? '2px solid #fff' : 'none',
-                                  outlineOffset: '-5px',
-                                  transition: '0.2s all'
-                                }}
-                                title={colorDetail.name}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
+                  
+                  {/* SELEKTOR OPSI PILIHAN VARIANT/TIPE */}
+                  <div className="mb-4">
+                    <span className="small d-block fw-bold text-secondary text-uppercase mb-2" style={{ fontSize: '0.75rem', letterSpacing: '0.5px' }}>Pilihan Varian / Tipe:</span>
+                    <div className="d-flex flex-wrap gap-2">
+                      {selectedProduct.types?.map((t, idx) => {
+                        const isSelected = selectedVariant && selectedVariant.id === t.id;
+                        return (
+                          <button 
+                            key={idx} 
+                            type="button"
+                            onClick={() => setSelectedVariant(t)} // Switch Harga Utama & Diskon Mengikuti Varian Ini
+                            className={`btn text-start p-2 px-3 border rounded-3 ${
+                              isSelected 
+                                ? 'border-primary bg-primary-subtle' 
+                                : 'border-secondary-subtle bg-white text-dark'
+                            }`}
+                            style={{ 
+                              minWidth: '130px', 
+                              boxShadow: isSelected ? '0 0 0 2px rgba(13, 110, 253, 0.25)' : 'none',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <div className={`fw-semibold ${isSelected ? 'text-primary' : 'text-secondary'}`} style={{ fontSize: '11px' }}>{t.type}</div>
+                            <div className="fw-bold" style={{ fontSize: '13px', color: isSelected ? '#0d6efd' : '#198754' }}>
+                              Rp {Number(t.price).toLocaleString("id-ID")}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
-
-                  <div className="mt-auto d-grid gap-2">
-                    <Button 
-                      variant="dark" 
-                      className="w-100 py-3 fw-bold rounded-3 shadow"
-                      disabled={!selectedVariant}
-                    >
-                      {selectedVariant ? 'TAMBAH KE KERANJANG' : 'PILIH WARNA DULU'}
-                    </Button>
-
-                    <Button variant="outline-secondary" className="w-100 py-3 fw-bold rounded-3 shadow">
-                      BELI SEKARANG
-                    </Button>
                   </div>
+                </div>
+
+                {/* AREA UTAMA PANEL TOMBOL AKSI */}
+                <div className="d-grid gap-2 mt-4">
+                  <Button variant="outline-dark" size="lg" className="fw-bold py-2.5" style={{ borderRadius: '10px', fontSize: '0.95rem' }} onClick={handleAddToCart}>
+                    ADD TO CART
+                  </Button>
+                  <Button variant="dark" size="lg" className="fw-bold py-2.5" style={{ borderRadius: '10px', fontSize: '0.95rem' }}>
+                    BELI SEKARANG
+                  </Button>
                 </div>
               </Col>
             </Row>

@@ -1,73 +1,87 @@
 import "bootstrap/dist/css/bootstrap.min.css";
-import { useEffect, useState } from "react";
-import AdminDashboard from "./Admin/AdminDashboard.tsx";
 import "./App.css";
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+
+// Import Komponen
+import AdminDashboard from "./Admin/AdminDashboard.tsx";
 import LandingPage from "./LandingPage/main";
 import AuthPage from "./Login/AuthPage.jsx";
 import ProductsPage from "./LandingPage/ProductPage.jsx";
 import CustomNavbar from "./LandingPage/component/Navbar.jsx";
-import { Container } from "react-bootstrap";
 import ProfilePage from "./LandingPage/ProfilePage.jsx";
+import Footer from "./LandingPage/component/Footer.jsx";
+import ShippingPage from "./LandingPage/ShippingPage.jsx";
+import ContactPage from "./LandingPage/ContactPage.jsx";
+import TermsConditionsPage from "./LandingPage/TermsConditionsPage.jsx";
+import { useEffect, useState } from "react";
+
+// Komponen Pembantu untuk mengatur tampilan Navbar & Footer
+const LayoutWrapper = ({ children }) => {
+  const location = useLocation();
+  const hideLayout = location.pathname === "/dashboard" || location.pathname === "/login";
+
+  return (
+    <div className="App d-flex flex-column min-vh-100">
+      {/* Navbar hanya muncul jika bukan di halaman admin/login */}
+      {!hideLayout && <CustomNavbar />}
+
+      <main className="flex-grow-1">
+        {children}
+      </main>
+
+      {/* Footer hanya muncul jika bukan di halaman admin/login */}
+      {!hideLayout && <Footer />}
+    </div>
+  );
+};
 
 function App() {
-  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  // Inisialisasi state berdasarkan data di localStorage
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    const handleLocationChange = () => {
-      setCurrentPath(window.location.pathname);
-    };
-
-    window.addEventListener("popstate", handleLocationChange);
-    return () => window.removeEventListener("popstate", handleLocationChange);
+    // Cek apakah ada token login saat aplikasi pertama kali dimuat
+    const token = localStorage.getItem("userToken");
+    if (token) {
+      setIsLoggedIn(true);
+    }
   }, []);
 
-  const navigateTo = (path) => {
-    window.history.pushState({}, "", path);
-    setCurrentPath(path);
+  // Fungsi untuk Login
+  const login = (token) => {
+    localStorage.setItem("userToken", token);
+    setIsLoggedIn(true);
+  };
+
+  // Fungsi untuk Logout
+  const logout = () => {
+    localStorage.removeItem("userToken");
+    setIsLoggedIn(false);
   };
 
   return (
-    <div className="App d-flex flex-column min-vh-100"> {/* Tambahkan class Flexbox di sini */}
-        {/* NAVBAR */}
-        {currentPath !== "/admin" && currentPath !== "/login" && (
-          <CustomNavbar 
-            navigateTo={navigateTo} 
-            currentPath={currentPath} 
-          />
-        )}
+    <Router>
+      <LayoutWrapper>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<AuthPage onLogin={login} />} />
+          
+          {/* Halaman Statis & Produk */}
+          <Route path="/produk" element={<ProductsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/shipping-policy" element={<ShippingPage />} />
+          <Route path="/contact-us" element={<ContactPage />} />
+          <Route path="/terms-conditions" element={<TermsConditionsPage />} />
+          
+          {/* Halaman Auth & Admin */}
+          <Route path="/login" element={<AuthPage />} />
+          <Route path="/dashboard" element={<AdminDashboard />} />
 
-        {/* MAIN CONTENT - Bungkus dengan tag main + flex-grow-1 */}
-        <main className="flex-grow-1">
-          {(() => {
-            if (currentPath === "/admin") {
-              return <AdminDashboard />;
-            } else if (currentPath === "/login") {
-              return <AuthPage />;
-            } else if (currentPath === "/produk") { 
-              return <ProductsPage />;
-            } else if (currentPath === "/profile") {
-              return <ProfilePage navigateTo={navigateTo} />;
-            } else {
-              return (
-                <LandingPage 
-                  onAdminClick={() => navigateTo("/admin")} 
-                  onProductsClick={() => navigateTo("/produk")}
-                  navigateTo={navigateTo}
-                />
-              );
-            }
-          })()}
-        </main>
-
-        {/* FOOTER */}
-        {currentPath !== "/admin" && currentPath !== "/login" && (
-          <footer className="bg-dark text-white py-4 mt-auto">
-            <Container className="text-center">
-              <p className="mb-0">&copy; 2026 DakenShop | Powered by Anavallo.id</p>
-            </Container>
-          </footer>  
-        )}
-      </div>
+          {/* Fallback 404 */}
+          <Route path="*" element={<LandingPage />} />
+        </Routes>
+      </LayoutWrapper>
+    </Router>
   );
 }
 
