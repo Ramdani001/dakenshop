@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Nav, Breadcrumb, Offcanvas, Carousel, Modal, Spinner } from 'react-bootstrap';
+// import { Funnel, BoxSeam } from 'react-API_URL-icons';
 import { Funnel, BoxSeam } from 'react-bootstrap-icons';
 
 const ProductsPage = () => {
-  const API_URL = 'http://210.79.190.222:3005';
+  const API_URL = 'http://103.30.194.75:3005';
 
   // --- STATE UTAMA ---
   const [products, setProducts] = useState([]);
@@ -54,15 +55,12 @@ const ProductsPage = () => {
     fetchData();
   }, []);
 
-  // --- LOGIKA FILTER BERDASARKAN CATEGORY_ID ---
   const filteredProducts = filter === "Semua" 
     ? products 
     : products.filter(p => p.categoryId === filter);
 
-  // --- LOGIKA DETAIL MODAL & ADD TO CART ---
   const handleOpenDetail = (product) => {
     setSelectedProduct(product);
-    // Otomatis arahkan ke varian pertama produk sebagai pilihan default awal
     if (product.types && product.types.length > 0) {
       setSelectedVariant(product.types[0]);
     } else {
@@ -281,13 +279,11 @@ const ProductsPage = () => {
         </Row>
       </Container>
 
-      {/* --- OFFCANVAS FILTER (MOBILE) --- */}
       <Offcanvas show={showFilter} onHide={handleClose} placement="start">
         <Offcanvas.Header closeButton><Offcanvas.Title className="fw-bold">FILTER</Offcanvas.Title></Offcanvas.Header>
         <Offcanvas.Body><FilterContent /></Offcanvas.Body>
       </Offcanvas>
 
-      {/* --- MODAL DETAIL PRODUK INTERAKTIF --- */}
       <Modal show={showDetail} onHide={() => setShowDetail(false)} size="lg" centered>
         <Modal.Body className="p-0">
           <Button variant="light" onClick={() => setShowDetail(false)} className="position-absolute end-0 top-0 m-3 z-3 rounded-circle" style={{ width: '35px', height: '35px', border: '1px solid #ddd' }}>✕</Button>

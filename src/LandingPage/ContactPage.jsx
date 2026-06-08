@@ -1,11 +1,47 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Container, Row, Col, Form, Button, Card } from 'react-bootstrap';
-import { FaWhatsapp, FaEnvelope, FaMapMarkerAlt, FaClock, FaQuestionCircle } from 'react-icons/fa';
+import { FaWhatsapp, FaEnvelope, FaClock, FaQuestionCircle } from 'react-icons/fa';
 
 const ContactPage = () => {
+  // --- STATE UNTUK MENAMPUNG INPUT FORMULIR ---
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    subject: 'Tanya Stok Produk', // Default opsi pertama
+    message: ''
+  });
+
+  // Fungsi penangkap perubahan teks input
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // --- FUNGSI REDIRECT OTOMATIS KE WHATSAPP DENGAN DYNAMIC PAYLOAD ---
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert('Terima kasih! Pesan Anda telah kami terima. Tim DakenShop akan membalas dalam waktu maksimal 24 jam.');
+
+    // Nomor WhatsApp tujuan CS DakenShop (Ubah sesuai kebutuhan)
+    const phoneNumber = "6285624432695"; 
+
+    // Menyusun template teks pesan terformat
+    const textMessage = `*Pesan Baru dari Hubungi Kami - DakenShop*\n\n` +
+                        `👤 *Nama:* ${formData.name}\n` +
+                        `✉️ *Email:* ${formData.email}\n` +
+                        `📌 *Subjek:* ${formData.subject}\n\n` +
+                        `💬 *Isi Pesan:*\n${formData.message}`;
+
+    // Konversi teks biasa ke format URL safe string
+    const encodedMessage = encodeURIComponent(textMessage);
+
+    // Gabungkan menjadi url chat wa.me resmi
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
+
+    // Buka aplikasi WA / tab browser baru
+    window.open(whatsappUrl, '_blank');
   };
 
   return (
@@ -22,7 +58,7 @@ const ContactPage = () => {
       <Container className="pb-5">
         <Row className="gy-5">
           
-          {/* Sisi Kiri: Informasi & Card Kontak */}
+          {/* Sisi Kiri: Informasi Kontak */}
           <Col lg={5}>
             <div className="pe-lg-4">
               <h3 className="fw-bold mb-4">Informasi Kontak</h3>
@@ -66,7 +102,7 @@ const ContactPage = () => {
             </div>
           </Col>
 
-          {/* Sisi Kanan: Form Kontak Modern */}
+          {/* Sisi Kanan: Form Kontak */}
           <Col lg={7}>
             <Card className="border-0 shadow-lg p-2 p-md-4" style={{ borderRadius: '25px' }}>
               <Card.Body>
@@ -82,6 +118,9 @@ const ContactPage = () => {
                         <Form.Label className="small fw-bold text-secondary">NAMA LENGKAP</Form.Label>
                         <Form.Control 
                           type="text" 
+                          name="name"
+                          value={formData.name}
+                          onChange={handleChange}
                           placeholder="Contoh: Budi Santoso" 
                           className="bg-light border-0 py-3 px-4 shadow-none custom-input" 
                           required 
@@ -93,6 +132,9 @@ const ContactPage = () => {
                         <Form.Label className="small fw-bold text-secondary">ALAMAT EMAIL</Form.Label>
                         <Form.Control 
                           type="email" 
+                          name="email"
+                          value={formData.email}
+                          onChange={handleChange}
                           placeholder="budi@email.com" 
                           className="bg-light border-0 py-3 px-4 shadow-none custom-input" 
                           required 
@@ -102,12 +144,18 @@ const ContactPage = () => {
                   </Row>
 
                   <Form.Group className="mb-3">
+                    {/* PERBAIKAN UTAMA: Elemen <Theme.Label> hantu sudah diganti total menjadi <Form.Label> bawaan react-bootstrap */}
                     <Form.Label className="small fw-bold text-secondary">SUBJEK</Form.Label>
-                    <Form.Select className="bg-light border-0 py-3 px-4 shadow-none custom-input">
-                      <option>Tanya Stok Produk</option>
-                      <option>Status Pengiriman</option>
-                      <option>Klaim Garansi / Retur</option>
-                      <option>Lainnya</option>
+                    <Form.Select 
+                      name="subject"
+                      value={formData.subject}
+                      onChange={handleChange}
+                      className="bg-light border-0 py-3 px-4 shadow-none custom-input"
+                    >
+                      <option value="Tanya Stok Produk">Tanya Stok Produk</option>
+                      <option value="Status Pengiriman">Status Pengiriman</option>
+                      <option value="Klaim Garansi / Retur">Klaim Garansi / Retur</option>
+                      <option value="Lainnya">Lainnya</option>
                     </Form.Select>
                   </Form.Group>
 
@@ -115,6 +163,9 @@ const ContactPage = () => {
                     <Form.Label className="small fw-bold text-secondary">PESAN ANDA</Form.Label>
                     <Form.Control 
                       as="textarea" 
+                      name="message"
+                      value={formData.message}
+                      onChange={handleChange}
                       rows={5} 
                       placeholder="Tuliskan detail pertanyaan Anda..." 
                       className="bg-light border-0 py-3 px-4 shadow-none custom-input" 
@@ -135,7 +186,6 @@ const ContactPage = () => {
               </Card.Body>
             </Card>
             
-            {/* Info Tambahan di bawah form */}
             <div className="mt-4 text-center">
               <p className="text-muted small">
                 <FaQuestionCircle className="me-2" />
@@ -146,7 +196,7 @@ const ContactPage = () => {
         </Row>
       </Container>
 
-      {/* Internal CSS untuk efek UX */}
+      {/* Internal CSS untuk UX Visual */}
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-input:focus {
           background-color: #fff !important;

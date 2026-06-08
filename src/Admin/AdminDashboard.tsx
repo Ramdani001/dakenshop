@@ -1,14 +1,12 @@
 import React, { CSSProperties, useEffect, useState } from "react";
-import { Badge, Button, Offcanvas } from "react-bootstrap";
+import { Button, Offcanvas } from "react-bootstrap";
 import {
-  Bell,
   Box2Fill,
   BoxArrowRight,
   Grid3x3Gap,
   LightningChargeFill,
   List,
   People,
-  Search,
   Speedometer2,
   Wallet2,
 } from "react-bootstrap-icons";

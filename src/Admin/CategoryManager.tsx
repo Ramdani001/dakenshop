@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Badge, Button, Spinner, Form, Modal } from "react-bootstrap";
+import { Alert, Button, Spinner, Form, Modal } from "react-bootstrap";
 import {
   ArrowClockwise,
   Folder2Open,
@@ -45,7 +45,7 @@ const CategoryManager: React.FC = () => {
     icon: null,
   });
 
-  const BASE_URL = "http://210.79.190.222:3005";
+  const BASE_URL = "http://103.30.194.75:3005";
 
   // Helper mengambil Bearer Token
   const getCleanToken = () => {

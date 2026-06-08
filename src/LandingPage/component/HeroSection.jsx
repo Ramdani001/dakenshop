@@ -1,14 +1,16 @@
 import React from 'react';
 import { Container, Row, Col, Button } from 'react-bootstrap';
+// 1. Ambil hook useNavigate dari react-router-dom
+import { useNavigate } from 'react-router-dom'; 
 
+const HeroSection = () => {
+  // 2. Inisialisasi fungsi navigasi
+  const navigate = useNavigate(); 
 
-const HeroSection = ({navigateTo}) => {
   const handleNavClick = (path) => {
+    navigate(path); // 3. Jalankan perpindahan halaman asli
+  };
 
-      if (navigateTo) {
-        navigateTo(path);
-      }
-    };
   return (
     <section 
       className="d-flex align-items-center" 
@@ -35,6 +37,7 @@ const HeroSection = ({navigateTo}) => {
                 mengelola rumah dengan teknologi terbaru.
               </p>
 
+              {/* 4. Tombol yang langsung memicu perpindahan rute halaman */}
               <Button 
                 variant="primary" 
                 size="lg"

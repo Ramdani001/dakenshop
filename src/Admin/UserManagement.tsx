@@ -79,7 +79,7 @@ const UserManagement: React.FC = () => {
     setError(null);
     try {
       const response = await fetch(
-        `http://localhost:3005/api/profile?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`,
+        `http://103.30.194.75:3005/api/profile?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`,
         {
           method: "GET",
           headers: {
@@ -148,8 +148,8 @@ const UserManagement: React.FC = () => {
 
     try {
       const url = modalType === "ADD" 
-        ? "http://localhost:3005/api/profile"
-        : `http://localhost:3005/api/profile/${selectedUser?.id}`;
+        ? "http://103.30.194.75:3005/api/profile"
+        : `http://103.30.194.75:3005/api/profile/${selectedUser?.id}`;
 
       const method = modalType === "ADD" ? "POST" : "PUT";
       
@@ -185,7 +185,7 @@ const UserManagement: React.FC = () => {
     setFormIsSubmitting(true);
 
     try {
-      const response = await fetch(`http://localhost:3005/api/profile/${selectedUser.id}`, {
+      const response = await fetch(`http://103.30.194.75:3005/api/profile/${selectedUser.id}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${getCleanToken()}`,
@@ -225,7 +225,7 @@ const UserManagement: React.FC = () => {
         >
           {user.image ? (
             <img
-              src={"http://localhost:3005" + user.image}
+              src={"http:///103.30.194.75:3005" + user.image}
               alt={user.name}
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
               onError={(e) => { (e.target as HTMLImageElement).src = "https://via.placeholder.com/150"; }}

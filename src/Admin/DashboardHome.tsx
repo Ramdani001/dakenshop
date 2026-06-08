@@ -1,39 +1,54 @@
-import React from "react";
-import { Row, Col, Card } from "react-bootstrap";
+import React, { useState, useEffect } from "react";
+import { Row, Col, Card, Spinner } from "react-bootstrap";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell,
-  PieChart, Pie, Legend
+  BarChart, Bar, Cell, PieChart, Pie, Legend
 } from "recharts";
 
-// Data Dummy untuk Grafik Penjualan (Area Chart)
-const salesData = [
-  { name: "Dec 07", sales: 150 },
-  { name: "Dec 14", sales: 180 },
-  { name: "Dec 17", sales: 210 },
-  { name: "Dec 27", sales: 175 },
-  { name: "Dec 30", sales: 230 },
-];
-
-// Data Dummy untuk User Terdaftar (Bar Chart)
-const userData = [
-  { month: "Jan", users: 120 },
-  { month: "Feb", users: 150 },
-  { month: "Mar", users: 180 },
-  { month: "Apr", users: 160 },
-  { month: "May", users: 210 },
-  { month: "Jun", users: 250 },
-];
-
-// Data Dummy untuk Produk Terlaris (Pie Chart)
-const productData = [
-  { name: "Classic Tee", value: 35, color: "#3B82F6" },
-  { name: "Wireless Pods", value: 25, color: "#10B981" },
-  { name: "Canvas Backpack", value: 20, color: "#F59E0B" },
-  { name: "Others", value: 20, color: "#6366F1" },
-];
+interface DashboardData {
+  salesData: Array<{ name: string; sales: number }>;
+  userData: Array<{ month: string; users: number }>;
+  productData: Array<{ name: string; value: number; color: string }>;
+  quickStats: {
+    totalProducts: string;
+    activeCategories: string;
+    activePromos: string;
+    pendingOrders: string;
+  };
+}
 
 const DashboardHome: React.FC = () => {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/dashboard/stats"); // Ubah URL sesuai port backend kamu
+        const json = await response.json();
+        setData(json);
+      } catch (error) {
+        console.error("Gagal memuat data dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "80vh" }}>
+        <Spinner animation="border" variant="primary" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return <div className="text-center mt-5 text-danger">Data gagal dimuat dari server database.</div>;
+  }
+
   return (
     <div>
       <div className="mb-4">
@@ -42,13 +57,13 @@ const DashboardHome: React.FC = () => {
       </div>
 
       <Row className="g-4">
-        {/* 1. Grafik Penjualan (Area Chart) */}
+        {/* 1. Area Chart Penjualan Rentang 1 Bulan */}
         <Col lg={8}>
           <Card className="border-0 shadow-sm p-4" style={{ borderRadius: "20px" }}>
             <h5 className="fw-bold mb-4">Gross Sales Performance</h5>
             <div style={{ width: "100%", height: 300 }}>
               <ResponsiveContainer>
-                <AreaChart data={salesData}>
+                <AreaChart data={data.salesData}>
                   <defs>
                     <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.1}/>
@@ -66,13 +81,13 @@ const DashboardHome: React.FC = () => {
           </Card>
         </Col>
 
-        {/* 2. Statistik User Baru (Bar Chart) */}
+        {/* 2. Bar Chart User Terdaftar (Selain Admin) Rentang 1 Bulan */}
         <Col lg={4}>
           <Card className="border-0 shadow-sm p-4" style={{ borderRadius: "20px" }}>
             <h5 className="fw-bold mb-4">New Registered Users</h5>
             <div style={{ width: "100%", height: 300 }}>
               <ResponsiveContainer>
-                <BarChart data={userData}>
+                <BarChart data={data.userData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                   <XAxis dataKey="month" axisLine={false} tickLine={false} />
                   <Tooltip cursor={{fill: 'transparent'}} />
@@ -83,7 +98,7 @@ const DashboardHome: React.FC = () => {
           </Card>
         </Col>
 
-        {/* 3. Grafik Produk Terlaris (Pie Chart) */}
+        {/* 3. Ring Pie Chart Best Selling Products Keseluruhan */}
         <Col lg={6}>
           <Card className="border-0 shadow-sm p-4" style={{ borderRadius: "20px" }}>
             <h5 className="fw-bold mb-4">Best Selling Products</h5>
@@ -91,13 +106,13 @@ const DashboardHome: React.FC = () => {
               <ResponsiveContainer>
                 <PieChart>
                   <Pie
-                    data={productData}
+                    data={data.productData}
                     innerRadius={60}
                     outerRadius={80}
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {productData.map((entry, index) => (
+                    {data.productData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -109,16 +124,16 @@ const DashboardHome: React.FC = () => {
           </Card>
         </Col>
 
-        {/* 4. Quick Stats / Recent Activity */}
+        {/* 4. Quick Stats Dinamis */}
         <Col lg={6}>
           <Card className="border-0 shadow-sm p-4" style={{ borderRadius: "20px" }}>
             <h5 className="fw-bold mb-4">Quick Stats</h5>
             <Row className="g-3">
               {[
-                { label: "Total Products", value: "1,540", color: "#3B82F6" },
-                { label: "Active Categories", value: "32", color: "#10B981" },
-                { label: "Active Promos", value: "8", color: "#F59E0B" },
-                { label: "Pending Orders", value: "12", color: "#EF4444" },
+                { label: "Total Products", value: data.quickStats.totalProducts, color: "#3B82F6" },
+                { label: "Active Categories", value: data.quickStats.activeCategories, color: "#10B981" },
+                { label: "Active Promos", value: data.quickStats.activePromos, color: "#F59E0B" },
+                { label: "Pending Orders", value: data.quickStats.pendingOrders, color: "#EF4444" },
               ].map((item, i) => (
                 <Col xs={6} key={i}>
                   <div className="p-3 border rounded-3" style={{ backgroundColor: "#F8FAFC" }}>

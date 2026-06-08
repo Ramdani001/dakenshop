@@ -4,25 +4,6 @@ import { Person, Bag, GeoAlt, BoxArrowRight, ShieldLock, Camera } from 'react-bo
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 
-const dummyOrders = [
-  {
-    productName: "Beras Premium 5kg",
-    description: "Beras putih pilihan kualitas super, pulen dan wangi.",
-    price: 75000,
-    quantity: 1,
-    status: "Selesai",
-    productImg: "https://images.unsplash.com/photo-1586201375761-83865001e31c?q=80&w=2070&auto=format&fit=crop"
-  },
-  {
-    productName: "Minyak Goreng 2L",
-    description: "Minyak goreng kelapa sawit jernih, tahan panas.",
-    price: 36000,
-    quantity: 2,
-    status: "Diproses",
-    productImg: "https://images.unsplash.com/photo-1474979266404-7eaacbad8f0f?q=80&w=2036&auto=format&fit=crop"
-  }
-];
-
 const ProfilePage = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -33,7 +14,7 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false); // State untuk loading saat simpan
 
-  const API_URL = 'http://localhost:3005/api';
+  const API_URL = 'http://103.30.194.75:3005/api';
 
   useEffect(() => {
     fetchUserData();
@@ -225,7 +206,7 @@ const ProfilePage = () => {
                 >
                   {userData?.image ? (
                     <img 
-                      src={`http://localhost:3005${userData.image}`} 
+                      src={`http://210.79.190.222:3005${userData.image}`} 
                       alt="Profile" 
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       onError={(e) => { e.target.src = "https://via.placeholder.com/120"; }} 

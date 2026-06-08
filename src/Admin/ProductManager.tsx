@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { Alert, Badge, Button, Spinner, Form, Modal, InputGroup, Row, Col } from "react-bootstrap";
 import {
   ArrowClockwise,
@@ -8,9 +8,12 @@ import {
   BoxSeam,
   Tags,
   CurrencyDollar,
-  XCircleFill
+  XCircleFill,
+  Download,
+  Upload
 } from "react-bootstrap-icons";
 import { ColumnDef, TableComponent } from "./Component/TableComponent.tsx";
+import * as XLSX from "xlsx";
 
 interface MetaData {
   total: number;
@@ -22,14 +25,14 @@ interface MetaData {
 interface ProductTypeInput {
   id?: string;
   name: string;
-  price: number | string; // Menggunakan union type agar input manual lancar saat kosong
+  price: number | string;
 }
 
 interface ProductFormState {
   name: string;
   categoryId: string;
-  description: string; // Tambahan field description
-  discount: number;    // Tambahan field discount
+  description: string;
+  discount: number;
   images: File[];
   types: ProductTypeInput[];
 }
@@ -55,27 +58,28 @@ const ProductManager: React.FC = () => {
   const [formValues, setFormValues] = useState<ProductFormState>({
     name: "",
     categoryId: "",
-    description: "", // Default kosong
-    discount: 25,    // Default statis 25
+    description: "",
+    discount: 25,
     images: [],
     types: [{ name: "Standard", price: "" }]
   });
 
-  const BASE_URL = "http://210.79.190.222:3005";
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const BASE_URL = "http://103.30.194.75:3005";
 
   const getCleanToken = () => {
     const token = localStorage.getItem('token');
     return token ? token.replace(/\s/g, '').replace(/['"]+/g, '') : '';
   };
 
-  // Fetch data produk & kategori
   const initData = useCallback(async (page = 1, limit = 10) => {
     setIsLoading(true);
     setError(null);
     try {
       const prodRes = await fetch(`${BASE_URL}/api/products?page=${page}&limit=${limit}`);
-      if (!prodRes.ok) throw new Error("Gagal mengambil data produk");
+      if (!prodRes.ok) throw new Error("Gagal mengambil data produk dari database");
       const prodData = await prodRes.json();
+      
       setProducts(prodData.data || []);
       setMetadata(prodData.meta || { total: 0, page: 1, limit: 10, totalPages: 1 });
 
@@ -85,15 +89,16 @@ const ProductManager: React.FC = () => {
         setCategories(catData.data || []);
       }
     } catch (err: any) {
-      setError(err.message || "Terjadi kesalahan koneksi");
+      setError(err.message || "Terjadi kesalahan koneksi database");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  useEffect(() => { initData(); }, [initData]);
+  useEffect(() => { 
+    initData(); 
+  }, [initData]);
 
-  // Cleanup ObjectURL untuk mencegah memory leak
   useEffect(() => {
     return () => {
       imagePreviews.forEach((url) => {
@@ -102,7 +107,135 @@ const ProductManager: React.FC = () => {
     };
   }, [imagePreviews]);
 
-  // Modal Triggers
+  // ==========================================
+  // FEATURE: EXPORT EXCEL
+  // ==========================================
+  const handleExportExcel = () => {
+    if (products.length === 0) {
+      alert("Tidak ada data produk untuk diexport.");
+      return;
+    }
+
+    const dataToExport = products.map((prod) => {
+      // Perbaikan: mengambil dari prod.types sesuai include Prisma backend
+      const varianString = prod.types && prod.types.length > 0
+        ? prod.types.map((t: any) => `${t.name || t.type}: Rp${Number(t.price).toLocaleString('id-ID')}`).join(" | ")
+        : "-";
+
+      const isExternalUrl = prod.imgUrl && (prod.imgUrl.startsWith("http://") || prod.imgUrl.startsWith("https://"));
+      const finalImageUrl = isExternalUrl ? prod.imgUrl : (prod.imgUrl ? `${BASE_URL}${prod.imgUrl}` : "-");
+
+      return {
+        "ID Produk": prod.id,
+        "Nama Produk": prod.name,
+        "Kategori": prod.category?.label || "Uncategorized",
+        "Deskripsi": prod.description || "-",
+        "Diskon (%)": prod.discountPercentage !== undefined ? prod.discountPercentage : 25,
+        "Daftar Varian & Harga": varianString,
+        "URL Gambar": finalImageUrl
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Daftar Produk");
+
+    worksheet["!cols"] = [{ wch: 25 }, { wch: 30 }, { wch: 20 }, { wch: 35 }, { wch: 12 }, { wch: 40 }, { wch: 45 }];
+    XLSX.writeFile(workbook, `Product_Stock_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  // ==========================================
+  // FEATURE: IMPORT EXCEL
+  // ==========================================
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      try {
+        setIsLoading(true);
+        const data = event.target?.result;
+        const workbook = XLSX.read(data, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        
+        const xlsxData: any[] = XLSX.utils.sheet_to_json(worksheet);
+
+        if (xlsxData.length === 0) {
+          throw new Error("File excel kosong atau format salah.");
+        }
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const row of xlsxData) {
+          try {
+            const namaProduk = row["Nama Produk"];
+            const namaKategori = row["Kategori"];
+            const deskripsi = row["Deskripsi"] || "-";
+            const diskon = row["Diskon (%)"] || 25;
+            const daftarVarianText = row["Daftar Varian & Harga"];
+            const urlGambarExcel = row["URL Gambar"]; 
+
+            const matchedCategory = categories.find(c => c.label.toLowerCase() === String(namaKategori).toLowerCase());
+            const categoryId = matchedCategory ? matchedCategory.id : (categories[0]?.id || "");
+
+            let finalTypes = [{ type: "Standard", price: 0 }];
+            if (daftarVarianText && daftarVarianText !== "-") {
+              finalTypes = String(daftarVarianText).split("|").map(item => {
+                const parts = item.split(":");
+                const typeName = parts[0]?.trim() || "Standard";
+                const priceClean = parts[1] ? parts[1].replace(/[^0-9]/g, "") : "0";
+                return {
+                  type: typeName,
+                  price: Number(priceClean) || 0
+                };
+              });
+            }
+
+            const formData = new FormData();
+            formData.append("name", namaProduk || "Produk Tanpa Nama");
+            formData.append("categoryId", categoryId);
+            formData.append("description", deskripsi);
+            formData.append("discountPercentage", String(diskon));
+            formData.append("types", JSON.stringify(finalTypes));
+            
+            // Perbaikan: Jika row memiliki URL gambar eksternal, kirim sebagai string field 'imgUrl'
+            if (urlGambarExcel && urlGambarExcel !== "-") {
+              formData.append("imgUrl", urlGambarExcel); 
+            }
+
+            const response = await fetch(`${BASE_URL}/api/products`, {
+              method: "POST",
+              headers: { "Authorization": `Bearer ${getCleanToken()}` },
+              body: formData
+            });
+
+            if (response.ok) successCount++;
+            else failCount++;
+
+          } catch (singleErr) {
+            failCount++;
+          }
+        }
+
+        alert(`Proses Import Selesai!\nSukses: ${successCount} produk\nGagal: ${failCount} produk`);
+        initData(1, metadata.limit);
+
+      } catch (err: any) {
+        alert("Gagal membaca file excel: " + err.message);
+      } finally {
+        setIsLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = ""; 
+      }
+    };
+
+    reader.readAsBinaryString(file);
+  };
+
   const handleOpenAddModal = () => {
     setModalType("ADD");
     setHasVariants(false);
@@ -110,8 +243,8 @@ const ProductManager: React.FC = () => {
     setFormValues({ 
       name: "", 
       categoryId: "", 
-      description: "", // Reset field deskripsi
-      discount: 25,    // Tetap 25 saat tambah data
+      description: "", 
+      discount: 25,    
       images: [], 
       types: [{ name: "Standard", price: "" }] 
     });
@@ -123,11 +256,12 @@ const ProductManager: React.FC = () => {
     setModalType("EDIT");
     setSelectedProduct(prod);
 
-    const hasCustomVariants = prod.productTypes && prod.productTypes.length > 1;
+    const hasCustomVariants = prod.types && prod.types.length > 1;
     setHasVariants(hasCustomVariants);
 
-    if (prod.imageUrl) {
-      setImagePreviews([`${BASE_URL}${prod.imageUrl}`]);
+    if (prod.imgUrl) {
+      const isExternal = prod.imgUrl.startsWith("http://") || prod.imgUrl.startsWith("https://");
+      setImagePreviews([isExternal ? prod.imgUrl : `${BASE_URL}${prod.imgUrl}`]);
     } else {
       setImagePreviews([]);
     }
@@ -135,17 +269,16 @@ const ProductManager: React.FC = () => {
     setFormValues({
       name: prod.name,
       categoryId: prod.categoryId,
-      description: prod.description || "", // Ambil deskripsi lama jika tersedia
-      discount: prod.discount !== undefined ? prod.discount : 25, // Ambil dari API atau default ke 25
+      description: prod.description || "", 
+      discount: prod.discountPercentage !== undefined ? prod.discountPercentage : 25, 
       images: [],
-      types: prod.productTypes && prod.productTypes.length > 0 
-        ? prod.productTypes.map((t: any) => ({ id: t.id, name: t.name, price: t.price }))
+      types: prod.types && prod.types.length > 0 
+        ? prod.types.map((t: any) => ({ id: t.id, name: t.name || t.type, price: t.price }))
         : [{ name: "Standard", price: "" }]
     });
     setShowFormModal(true);
   };
 
-  // Dinamis Varian Handlers
   const handleAddTypeField = () => {
     setFormValues({ ...formValues, types: [...formValues.types, { name: "", price: "" }] });
   };
@@ -158,11 +291,13 @@ const ProductManager: React.FC = () => {
 
   const handleTypeChange = (index: number, field: keyof ProductTypeInput, value: any) => {
     const updated = [...formValues.types];
+    if (!updated[index]) {
+      updated[index] = { name: "Standard", price: "" };
+    }
     updated[index] = { ...updated[index], [field]: value };
     setFormValues({ ...formValues, types: updated });
   };
 
-  // File Change & Preview Handler
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
@@ -194,66 +329,62 @@ const ProductManager: React.FC = () => {
     setImagePreviews(updatedPreviews);
   };
 
-  // Submit Handler
   const handleFormSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (modalType === "ADD" && formValues.images.length === 0) {
-    alert("Minimal harus mengunggah 1 gambar.");
-    return;
-  }
-
-  setFormIsSubmitting(true);
-  try {
-    const url = modalType === "ADD" ? `${BASE_URL}/api/products` : `${BASE_URL}/api/products/${selectedProduct?.id}`;
-    const method = modalType === "ADD" ? "POST" : "PUT";
-
-    const formData = new FormData();
-    formData.append("name", formValues.name);
-    formData.append("categoryId", formValues.categoryId);
-    
-    // Memberikan fallback "-" jika deskripsi kosong agar tidak melanggar aturan REQUIRED di Prisma
-    formData.append("description", formValues.description.trim() || "-"); 
-    
-    // PERBAIKAN: Mengubah nama field sesuai skema database: discountPercentage
-    formData.append("discountPercentage", String(formValues.discount));
-
-    // PERBAIKAN: Menyesuaikan properti 'name' menjadi 'type' agar cocok dengan model ProductType
-    const baseTypes = hasVariants ? formValues.types : [formValues.types[0]];
-    const finalTypes = baseTypes.map(t => ({
-      id: t.id,                     // Sertakan ID jika dalam mode EDIT
-      type: t.name || "Standard",   // Diubah ke 'type' sesuai skema backend
-      price: Number(t.price) || 0   // Tetap diconvert ke number, backend nanti tinggal parseFloat()
-    }));
-    
-    formData.append("types", JSON.stringify(finalTypes));
-
-    // Mengambil gambar utama (index 0) untuk dicocokkan dengan upload.single("image") di backend
-    if (formValues.images.length > 0) {
-      formData.append("image", formValues.images[0]); 
+    if (modalType === "ADD" && formValues.images.length === 0) {
+      alert("Minimal harus mengunggah 1 gambar.");
+      return;
     }
 
-    const response = await fetch(url, {
-      method,
-      headers: { "Authorization": `Bearer ${getCleanToken()}` },
-      body: formData
-    });
+    setFormIsSubmitting(true);
+    try {
+      const url = modalType === "ADD" ? `${BASE_URL}/api/products` : `${BASE_URL}/api/products/${selectedProduct?.id}`;
+      const method = modalType === "ADD" ? "POST" : "PUT";
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Server Error (${response.status}): ${errorText.substring(0, 150)}`);
+      const formData = new FormData();
+      formData.append("name", formValues.name);
+      formData.append("categoryId", formValues.categoryId);
+      formData.append("description", formValues.description.trim() || "-"); 
+      formData.append("discountPercentage", String(formValues.discount));
+
+      const baseTypes = hasVariants 
+        ? formValues.types 
+        : [{ ...formValues.types[0], name: "Standard" }];
+
+      const finalTypes = baseTypes.map(t => ({
+        ...(t.id ? { id: t.id } : {}), 
+        type: t.name || "Standard",   
+        price: Number(t.price) || 0   
+      }));
+      
+      formData.append("types", JSON.stringify(finalTypes));
+
+      if (formValues.images.length > 0) {
+        formData.append("image", formValues.images[0]); 
+      }
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Authorization": `Bearer ${getCleanToken()}` },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server Error (${response.status}): ${errorText.substring(0, 150)}`);
+      }
+
+      await response.json();
+      setShowFormModal(false);
+      initData(metadata.page, metadata.limit); 
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message);
+    } finally {
+      setFormIsSubmitting(false);
     }
-
-    await response.json();
-    setShowFormModal(false);
-    initData(metadata.page, metadata.limit);
-  } catch (err: any) {
-    console.error(err);
-    alert(err.message);
-  } finally {
-    setFormIsSubmitting(false);
-  }
-};
+  };
 
   const handleDeleteSubmit = async () => {
     if (!selectedProduct) return;
@@ -271,7 +402,7 @@ const ProductManager: React.FC = () => {
         throw new Error(errTxt || "Gagal menghapus produk");
       }
       setShowDeleteModal(false);
-      initData(1, metadata.limit);
+      initData(1, metadata.limit); 
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -279,20 +410,35 @@ const ProductManager: React.FC = () => {
     }
   };
 
+  // =========================================================
+  // KONFIGURASI KOLOM TABEL UTAMA (PERBAIKAN FIELD DATA)
+  // =========================================================
   const columns: ColumnDef<any>[] = [
     {
-      key: "imageUrl",
+      key: "imgUrl",
       label: "Image",
       align: "center",
-      render: (prod: any) => (
-        <div className="bg-light rounded overflow-hidden border shadow-sm mx-auto" style={{ width: "50px", height: "50px" }}>
-          {prod.imageUrl ? (
-            <img src={`${BASE_URL}${prod.imageUrl}`} alt={prod.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          ) : (
-            <div className="d-flex h-100 align-items-center justify-content-center text-secondary"><BoxSeam size={20} /></div>
-          )}
-        </div>
-      )
+      render: (prod: any) => {
+        const isExternalUrl = prod.imgUrl && (prod.imgUrl.startsWith("http://") || prod.imgUrl.startsWith("https://"));
+        const finalSrc = isExternalUrl ? prod.imgUrl : `${BASE_URL}${prod.imgUrl}`;
+
+        return (
+          <div className="bg-light rounded overflow-hidden border shadow-sm mx-auto" style={{ width: "50px", height: "50px" }}>
+            {prod.imgUrl ? (
+              <img 
+                src={finalSrc} 
+                alt={prod.name} 
+                style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "https://placehold.co/50x50?text=Error";
+                }}
+              />
+            ) : (
+              <div className="d-flex h-100 align-items-center justify-content-center text-secondary"><BoxSeam size={20} /></div>
+            )}
+          </div>
+        );
+      }
     },
     {
       key: "name",
@@ -315,16 +461,20 @@ const ProductManager: React.FC = () => {
       )
     },
     {
-      key: "productTypes",
+      key: "types", // PERBAIKAN: diubah dari productTypes ke types agar sesuai skema Prisma include backend
       label: "Price Options",
       render: (prod: any) => (
         <div className="d-flex flex-column gap-1">
-          {prod.productTypes?.map((t: any, i: number) => (
-            <div key={i} className="small d-flex align-items-center gap-2">
-              <span className="text-muted font-monospace" style={{ fontSize: "11px" }}>{t.name}:</span>
-              <span className="fw-bold text-success">Rp {Number(t.price).toLocaleString("id-ID")}</span>
-            </div>
-          ))}
+          {prod.types && prod.types.length > 0 ? (
+            prod.types.map((t: any, i: number) => (
+              <div key={i} className="small d-flex align-items-center gap-2">
+                <span className="text-muted font-monospace" style={{ fontSize: "11px" }}>{t.name || t.type}:</span>
+                <span className="fw-bold text-success">Rp {Number(t.price).toLocaleString("id-ID")}</span>
+              </div>
+            ))
+          ) : (
+            <span className="text-muted small">- Tidak ada harga -</span>
+          )}
         </div>
       )
     },
@@ -348,14 +498,31 @@ const ProductManager: React.FC = () => {
 
   return (
     <div className="fade-in p-2">
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+      <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
         <div>
           <h4 className="fw-bold m-0" style={{ letterSpacing: "-1px", color: "#0F172A" }}>Product Stock Management</h4>
         </div>
-        <div className="d-flex gap-2">
-          <Button variant="light" onClick={() => initData(metadata.page, metadata.limit)} className="d-flex align-items-center gap-2 border fw-semibold style-btn">
+        
+        <div className="d-flex flex-wrap gap-2">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleImportExcel} 
+            accept=".xlsx, .xls" 
+            style={{ display: "none" }} 
+          />
+          <Button variant="white" onClick={() => fileInputRef.current?.click()} className="d-flex align-items-center gap-2 border fw-semibold style-btn hover-primary shadow-sm text-secondary" disabled={isLoading}>
+            <Upload size={14} /> Import Excel
+          </Button>
+          
+          <Button variant="white" onClick={handleExportExcel} className="d-flex align-items-center gap-2 border fw-semibold style-btn hover-primary shadow-sm text-secondary" disabled={isLoading || products.length === 0}>
+            <Download size={14} /> Export Excel
+          </Button>
+
+          <Button variant="light" onClick={() => initData(metadata.page, metadata.limit)} className="d-flex align-items-center gap-2 border fw-semibold style-btn text-dark" disabled={isLoading}>
             <ArrowClockwise className={isLoading ? "spin" : ""} /> Refresh
           </Button>
+          
           <Button onClick={handleOpenAddModal} className="d-flex align-items-center gap-2 px-3 shadow-sm btn-primary-custom fw-semibold style-btn">
             <PlusLg /> Add New Product
           </Button>
@@ -386,12 +553,8 @@ const ProductManager: React.FC = () => {
             filterValues={{}}
             onPageChange={(p) => initData(p, metadata.limit)}
             onLimitChange={(l) => initData(1, l)}
-            onSortChange={(sortKey, order) => {
-              console.log("Sort data:", sortKey, order);
-            }}
-            onFilterChange={(filters) => {
-              console.log("Filter data:", filters);
-            }}
+            onSortChange={(sortKey, order) => { console.log("Sort data:", sortKey, order); }}
+            onFilterChange={(filters) => { console.log("Filter data:", filters); }}
           />
         )}
       </div>
@@ -421,17 +584,16 @@ const ProductManager: React.FC = () => {
                 </Col>
             </Row>
 
-            {/* FIELD DESCRIPTION & DISCOUNT */}
             <Row>
                 <Col md={8}>
                 <Form.Group className="mb-3">
                     <Form.Label className="small fw-semibold text-secondary">Deskripsi Produk</Form.Label>
                     <Form.Control 
-                    as="textarea" 
-                    rows={2} 
-                    value={formValues.description} 
-                    onChange={(e) => setFormValues({ ...formValues, description: e.target.value })} 
-                    placeholder="Masukkan detail penjelasan tentang produk..." 
+                      as="textarea" 
+                      rows={2} 
+                      value={formValues.description} 
+                      onChange={(e) => setFormValues({ ...formValues, description: e.target.value })} 
+                      placeholder="Masukkan detail penjelasan tentang produk..." 
                     />
                 </Form.Group>
                 </Col>
@@ -455,24 +617,21 @@ const ProductManager: React.FC = () => {
             <Form.Group className="mb-4">
                 <Form.Label className="small fw-semibold text-secondary">Foto Produk (Minimal 1, Maksimal 4)</Form.Label>
                 <Form.Control 
-                type="file" 
-                accept="image/*" 
-                multiple 
-                required={modalType === "ADD" && formValues.images.length === 0} 
-                onChange={handleFileChange} 
+                  type="file" 
+                  accept="image/*" 
+                  multiple 
+                  required={modalType === "ADD" && formValues.images.length === 0} 
+                  onChange={handleFileChange} 
                 />
                 <Form.Text className="text-muted">
                 Pilih hingga 4 foto sekaligus (Ctrl / Shift + Klik).
                 </Form.Text>
 
-                {/* CONTAINER PREVIEW GAMBAR (Otomatis memuat blob local baru ATAU url dari backend) */}
                 {imagePreviews.length > 0 && (
                 <div className="d-flex flex-wrap gap-3 mt-3 p-3 bg-light rounded border">
                     {imagePreviews.map((url, idx) => (
                     <div key={idx} className="position-relative border rounded shadow-sm overflow-hidden" style={{ width: "90px", height: "90px" }}>
                         <img src={url} alt={`Preview ${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        
-                        {/* Tombol hapus hanya muncul untuk gambar baru (blob) agar tidak merusak manifest state edit */}
                         {url.startsWith("blob:") && (
                         <button
                             type="button"
@@ -509,7 +668,6 @@ const ProductManager: React.FC = () => {
                 {formValues.types.map((type: any, index) => (
                     <Row key={index} className="align-items-center mb-2 bg-light p-2 rounded mx-0 border">
                     <Col sm={5}>
-                        {/* PERBAIKAN: Membaca 'type.name' dari state atau fallback 'type.type' dari database backend */}
                         <Form.Control 
                         size="sm" 
                         type="text" 
@@ -562,7 +720,7 @@ const ProductManager: React.FC = () => {
             </Button>
             </Modal.Footer>
         </Form>
-        </Modal>
+      </Modal>
 
       {/* MODAL DELETE */}
       <Modal show={showDeleteModal} onHide={() => !formIsSubmitting && setShowDeleteModal(false)} centered size="sm">

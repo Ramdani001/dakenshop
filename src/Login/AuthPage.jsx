@@ -1,11 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Card, Alert } from 'react-bootstrap';
 import { Envelope, Lock, BoxSeam, CameraVideo, CheckCircle, Person, Telephone, GeoAlt, Camera } from 'react-bootstrap-icons';
+import { useNavigate } from 'react-router-dom';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const fileInputRef = useRef(null);
-  
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -41,54 +42,58 @@ const AuthPage = () => {
     setSuccess(null);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
+  setSuccess(null);
 
-    const BASE_URL = 'http://localhost:3005/api'; 
-    const endpoint = isLogin ? `${BASE_URL}/auth/login` : `${BASE_URL}/auth/register`;
+  const BASE_URL = 'http://103.30.194.75:3005/api'; 
+  const endpoint = isLogin ? `${BASE_URL}/auth/login` : `${BASE_URL}/auth/register`;
 
-    try {
-      let body;
-      let headers = {};
+  try {
+    let body;
+    let headers = {};
 
-      if (isLogin) {
-        headers['Content-Type'] = 'application/json';
-        body = JSON.stringify({ email: formData.email, password: formData.password });
-      } else {
-        const data = new FormData();
-        data.append('name', formData.name);
-        data.append('email', formData.email);
-        data.append('password', formData.password);
-        if (formData.phone) data.append('phone', formData.phone);
-        if (formData.address) data.append('address', formData.address);
-        if (formData.image) data.append('image', formData.image);
-        body = data;
-      }
+    if (isLogin) {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify({ email: formData.email, password: formData.password });
+    } else {
+      const data = new FormData();
+      data.append('name', formData.name);
+      data.append('email', formData.email);
+      data.append('password', formData.password);
+      if (formData.phone) data.append('phone', formData.phone);
+      if (formData.address) data.append('address', formData.address);
+      if (formData.image) data.append('image', formData.image);
+      body = data;
+    }
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: headers,
-        body: body,
-      });
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: headers,
+      body: body,
+    });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Terjadi kesalahan.');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Terjadi kesalahan.');
 
-      if (isLogin) {
+    if (isLogin) {
       setSuccess('Login Berhasil!');
       
       if (data.token) localStorage.setItem('token', data.token);
       
-      const userRole = data.role || (data.user && data.user.role);
+      const rawRole = data.role || (data.user && data.user.role);
+      const cleanRole = rawRole ? String(rawRole).trim().toUpperCase() : '';
 
+      console.log("DEBUG LOGIN ROLE:", { original: rawRole, cleaned: cleanRole });
+
+      // === PERBAIKAN: Hapus useEffect, langsung gunakan setTimeout biasa ===
       setTimeout(() => {
-        if (userRole === 'ADMIN') {
-          window.location.href = '/dashboard';
+        if (cleanRole === 'ADMIN') {
+          navigate('/dashboard'); 
         } else {
-          window.location.href = '/';
+          navigate('/');
         }
       }, 1500);
 
@@ -96,12 +101,12 @@ const AuthPage = () => {
       setSuccess('Pendaftaran berhasil! Silakan masuk.');
       setTimeout(() => handleSwitchTab(true), 2000);
     }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="auth-container d-flex align-items-center" style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #e0f7ef 0%, #f9f0d1 100%)', padding: '20px 0' }}>
@@ -135,7 +140,7 @@ const AuthPage = () => {
 
               <Form onSubmit={handleSubmit}>
                 <Row>
-                  {/* FOTO PROFIL - Selalu Paling Atas di Mobile */}
+                  {/* FOTO PROFIL */}
                   {!isLogin && (
                     <Col xs={12} className="mb-4 text-center order-first">
                       <Form.Label className="small fw-bold text-uppercase d-block mb-2">Foto Profil</Form.Label>
@@ -187,7 +192,7 @@ const AuthPage = () => {
                     </div>
                   </Col>
 
-                  {/* FIELD OPSIONAL (Hanya Daftar) */}
+                  {/* FIELD OPSIONAL */}
                   {!isLogin && (
                     <>
                       <Col md={6} className="mb-3">
