@@ -1,47 +1,73 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Nav, Breadcrumb, Offcanvas, Carousel, Modal, Spinner } from 'react-bootstrap';
-// import { Funnel, BoxSeam } from 'react-API_URL-icons';
-import { Funnel, BoxSeam } from 'react-bootstrap-icons';
+import { Container, Row, Col, Card, Button, Nav, Breadcrumb, Offcanvas, Modal, Spinner, Form } from 'react-bootstrap';
+import { Funnel, BoxSeam, CartPlusFill, Whatsapp, CreditCard } from 'react-bootstrap-icons';
 
 const ProductsPage = () => {
   const API_URL = 'http://103.30.194.75:3005';
+  const WHATSAPP_NUMBER = '6285624432695';
 
   // --- STATE UTAMA ---
   const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]); // Menampung kategori dari database
+  const [categories, setCategories] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // --- STATE UI ---
   const [showFilter, setShowFilter] = useState(false);
-  const [filter, setFilter] = useState("Semua"); // ID Kategori terpilih atau string "Semua"
-  const [filterLabel, setFilterLabel] = useState("Semua"); // Nama teks kategori terpilih
+  const [filter, setFilter] = useState("Semua"); 
+  const [filterLabel, setFilterLabel] = useState("Semua"); 
   const [showDetail, setShowDetail] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [selectedVariant, setSelectedVariant] = useState(null); // Menyimpan objek varian yang aktif di-klik
+  const [selectedVariant, setSelectedVariant] = useState(null); 
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+
+  // --- STATE FORM DIRECT CHECKOUT (WHATSAPP + DATABASE) ---
+  const [showBuyNowModal, setShowBuyNowModal] = useState(false);
+  const [buyCustomerName, setBuyCustomerName] = useState("");
+  const [buyCustomerPhone, setBuyCustomerPhone] = useState("");
+  const [buyCustomerEmail, setBuyCustomerEmail] = useState(""); 
+  const [buyQuantity, setBuyQuantity] = useState(1);
+  const [buyAddress, setBuyAddress] = useState("");
+  const [buyPaymentMethod, setBuyPaymentMethod] = useState("Transfer Bank");
+  const [buyShippingDuration, setBuyShippingDuration] = useState("Reguler (2-3 Hari)");
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
   const handleClose = () => setShowFilter(false);
   const handleShowFil = () => setShowFilter(true);
 
-  // --- FETCH DATA DARI API ---
+  const getCleanToken = () => {
+    const token = localStorage.getItem('token');
+    return token ? token.replace(/\s/g, '').replace(/['"]+/g, '') : '';
+  };
+
+  const parseProductImages = (imageField) => {
+    if (!imageField) return [];
+    let target = imageField.trim();
+    if (target.startsWith('"') && target.endsWith('"') && !target.startsWith('["')) {
+      target = target.substring(1, target.length - 1);
+    }
+    try {
+      if (target.startsWith("[")) return JSON.parse(target);
+      return [target];
+    } catch (e) {
+      return [target];
+    }
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Ambil data produk dan kategori secara bersamaan
       const [resProducts, resCategories] = await Promise.all([
         fetch(`${API_URL}/api/products?page=1&limit=100`),
         fetch(`${API_URL}/api/categories?page=1&limit=100`)
       ]);
-
       if (!resProducts.ok) throw new Error('Gagal mengambil data produk');
       if (!resCategories.ok) throw new Error('Gagal mengambil data kategori');
 
       const dataProducts = await resProducts.json();
       const dataCategories = await resCategories.json();
 
-      // Ambil array dari property .data bawaan API pagination kamu
       setProducts(dataProducts.data || []);
       setCategories(dataCategories.data || []);
     } catch (err) {
@@ -69,78 +95,165 @@ const ProductsPage = () => {
     setShowDetail(true);
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!selectedProduct || !selectedVariant) {
       alert("Silakan pilih varian produk terlebih dahulu.");
       return;
     }
-
-    // 1. Dapatkan ID User login unik dari localStorage untuk memisahkan data keranjang
-    let userId = "guest";
+    const token = getCleanToken();
+    if (!token) {
+      alert("Silakan login akun terlebih dahulu untuk mengaktifkan sinkronisasi Cart!");
+      return;
+    }
+    setIsAddingToCart(true);
     try {
-      const savedUser = localStorage.getItem("user");
-      if (savedUser) {
-        const parsedUser = JSON.parse(savedUser);
-        userId = parsedUser.id || parsedUser.uuid || "guest";
+      const response = await fetch(`${API_URL}/api/cart`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          productId: selectedProduct.id,
+          quantity: 1
+        })
+      });
+      if (!response.ok) {
+        const errorMsg = await response.text();
+        throw new Error(errorMsg || "Gagal memasukkan produk ke dalam database keranjang");
       }
-    } catch (e) {
-      console.error("Gagal membaca session data user:", e);
+      alert(`Sukses menambahkan "${selectedProduct.name} (${selectedVariant.type})" ke database Cart Anda!`);
+      setShowDetail(false);
+    } catch (err) {
+      alert(`Gagal sinkronisasi Cart: ${err.message}`);
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
+  const handleOpenBuyNowModal = () => {
+    if (!selectedProduct || !selectedVariant) {
+      alert("Silakan pilih varian produk terlebih dahulu.");
+      return;
+    }
+    setBuyCustomerName("");
+    setBuyCustomerPhone("");
+    setBuyCustomerEmail("");
+    setBuyQuantity(1);
+    setBuyAddress("");
+    setBuyPaymentMethod("Transfer Bank");
+    setBuyShippingDuration("Reguler (2-3 Hari)");
+    setShowBuyNowModal(true);
+  };
+
+  const handleCheckoutAndWhatsApp = async (e) => {
+    e.preventDefault();
+    
+    if (!buyCustomerName.trim()) return alert("Nama lengkap wajib diisi!");
+    if (!buyCustomerPhone.trim()) return alert("Nomor telepon wajib diisi!");
+    if (!buyCustomerEmail.trim()) return alert("Email wajib diisi!");
+    if (!buyAddress.trim()) return alert("Alamat pengiriman wajib diisi!");
+
+    const token = getCleanToken();
+    if (!token) {
+      alert("Silakan login akun terlebih dahulu untuk melakukan transaksi pembelian!");
+      return;
     }
 
-    const cartKey = `cart_${userId}`;
-
-    // 2. Hitung harga final setelah dipotong diskon database
     const originalPrice = Number(selectedVariant.price) || 0;
     const discountPercent = Number(selectedProduct.discountPercentage) || 0;
     const priceAfterDiscount = originalPrice * (1 - discountPercent / 100);
+    const totalPayment = priceAfterDiscount * buyQuantity;
 
-    // 3. Buat rancangan objek item keranjang
-    const cartItem = {
+    setIsSubmittingOrder(true);
+    let generatedOrderId = "";
+
+    const itemPayload = {
       productId: selectedProduct.id,
       productName: selectedProduct.name,
-      imgUrl: selectedProduct.imgUrl,
-      variantId: selectedVariant.id,
-      variantType: selectedVariant.type,
-      originalPrice: originalPrice,
-      discountPercentage: discountPercent,
-      priceAfterDiscount: priceAfterDiscount,
-      quantity: 1
+      productType: selectedVariant.type,
+      price: priceAfterDiscount,
+      quantity: buyQuantity
     };
 
-    // 4. Ambil database keranjang lama di localStorage berdasarkan user key
-    let currentCart = [];
     try {
-      const existingCart = localStorage.getItem(cartKey);
-      if (existingCart) currentCart = JSON.parse(existingCart);
-    } catch (e) {
-      currentCart = [];
+      // Menembak endpoint POST /api/orders (sesuai rootRouter.use("/orders", ...))
+      const response = await fetch(`${API_URL}/api/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          customerName: buyCustomerName.trim(),
+          customerEmail: buyCustomerEmail.trim(),
+          customerPhone: buyCustomerPhone.trim(),
+          address: buyAddress.trim(),
+          totalAmount: totalPayment,
+          status: "PENDING_PAYMENT", 
+          items: [itemPayload],       
+          orderItems: [itemPayload]  
+        })
+      });
+
+      const resultData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(resultData.message || "Gagal mendaftarkan transaksi ke database server.");
+      }
+
+      if (resultData && resultData.data && resultData.data.id) {
+        generatedOrderId = String(resultData.data.id);
+      } else if (resultData && resultData.id) {
+        generatedOrderId = String(resultData.id);
+      }
+
+    } catch (dbErr) {
+      console.error("Gagal menanam transaksi ke database:", dbErr);
+    } finally {
+      setIsSubmittingOrder(false);
     }
 
-    // Cek duplikasi: Apakah produk + varian tipe yang sama sudah ada di keranjang?
-    const existingItemIndex = currentCart.findIndex(
-      (item) => item.productId === cartItem.productId && item.variantId === cartItem.variantId
-    );
+    // 2. Rangkai Teks Invoice WhatsApp
+    const messageText = 
+`*ORDER INSTAN DAKENSHOP*
+${generatedOrderId ? `• No. Invoice    : INV-${generatedOrderId.substring(0, 8).toUpperCase()}\n` : ""}--------------------------------------------
+*Data Pelanggan:*
+• Nama Customer : ${buyCustomerName.trim()}
+• No. Telepon   : ${buyCustomerPhone.trim()}
+• Email         : ${buyCustomerEmail.trim()}
 
-    if (existingItemIndex > -1) {
-      // Jika kembar, cukup naikkan kuantitas pemesanan barangnya saja
-      currentCart[existingItemIndex].quantity += 1;
-    } else {
-      // Jika kombinasi item baru, masukkan data baru ke dalam array list
-      currentCart.push(cartItem);
-    }
+*Data Produk:*
+• ID Produk     : ${selectedProduct.id}
+• Nama Produk   : ${selectedProduct.name}
+• Varian Tipe   : ${selectedVariant.type}
+• Harga Satuan  : Rp ${priceAfterDiscount.toLocaleString("id-ID")}
 
-    // 5. Simpan kembali array data baru ke localStorage
-    localStorage.setItem(cartKey, JSON.stringify(currentCart));
-    alert(`Berhasil menambahkan "${selectedProduct.name} (${selectedVariant.type})" ke dalam keranjang belanja!`);
+*Rincian Pembelian:*
+• Jumlah (Qty)  : ${buyQuantity}x
+• Pengiriman    : ${buyShippingDuration}
+• Metode Bayar  : ${buyPaymentMethod}
+• Total Bayar   : *Rp ${totalPayment.toLocaleString("id-ID")}*
+
+*Alamat Tujuan Pengiriman:*
+${buyAddress.trim()}
+--------------------------------------------
+_Sistem otomatis: Data pesanan ini telah disinkronkan ke database transaksi DakenShop._`;
+
+    const encodedMessage = encodeURIComponent(messageText);
+    const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`;
+
+    window.open(waUrl, '_blank');
+    
+    setShowBuyNowModal(false);
+    setShowDetail(false);
   };
 
-  // --- SIDEBAR FILTER DINAMIS ---
   const FilterContent = () => (
     <div className="filter-sidebar-content text-start">
       <div className="mb-4">
         <span className="filter-label fw-bold d-block mb-3 border-bottom pb-2 text-uppercase" style={{ fontSize: '0.85rem', letterSpacing: '1px' }}>Kategori</span>
         <Nav className="flex-column">
-          {/* Tombol Reset Semua */}
           <Nav.Link 
             className={`filter-link ps-0 ${filter === "Semua" ? 'fw-bold text-danger' : 'text-dark'}`}
             style={{ fontSize: '0.95rem', cursor: 'pointer' }}
@@ -152,16 +265,14 @@ const ProductsPage = () => {
           >
             Semua
           </Nav.Link>
-
-          {/* List Kategori dari DB */}
           {categories.map((cat) => (
             <Nav.Link 
               key={cat.id} 
               className={`filter-link ps-0 ${filter === cat.id ? 'fw-bold text-danger' : 'text-dark'}`}
               style={{ fontSize: '0.95rem', cursor: 'pointer' }}
               onClick={() => {
-                setFilter(cat.id);        // Filter menggunakan categoryId (string UUID)
-                setFilterLabel(cat.label); // Tampilkan nama asli kategori di judul halaman
+                setFilter(cat.id);        
+                setFilterLabel(cat.label); 
                 handleClose();
               }}
             >
@@ -173,40 +284,27 @@ const ProductsPage = () => {
     </div>
   );
 
-  if (loading) {
-    return (
-      <Container className="d-flex flex-column justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
-        <Spinner animation="grow" variant="primary" />
-        <span className="mt-3 fw-bold text-muted">Menghubungkan ke DakenShop...</span>
-      </Container>
-    );
-  }
-
   return (
     <div className="products-page min-vh-100 d-flex flex-column" style={{ paddingTop: '100px', backgroundColor: '#f8f9fa' }}>
       <Container className="flex-grow-1">
         
-        {/* Top Navbar Info */}
         <div className="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded-3 shadow-sm">
           <Breadcrumb className="mb-0">
             <Breadcrumb.Item href="/">Beranda</Breadcrumb.Item>
             <Breadcrumb.Item active>All Produk</Breadcrumb.Item>
           </Breadcrumb>
-
           <Button variant="outline-dark" className="d-lg-none d-flex align-items-center gap-2" onClick={handleShowFil}>
             <Funnel /> Filter
           </Button>
         </div>
 
         <Row className="g-4">
-          {/* Sidebar Filter Kategori (Desktop) */}
           <Col lg={3} className="d-none d-lg-block">
             <div className="bg-white p-4 rounded-3 shadow-sm sticky-top" style={{ top: '120px' }}>
               <FilterContent />
             </div>
           </Col>
 
-          {/* Grid Konten Produk */}
           <Col lg={9} xs={12}>
             {error ? (
               <div className="alert alert-danger p-4 text-center rounded-3">
@@ -224,10 +322,11 @@ const ProductsPage = () => {
                 {filteredProducts.length > 0 ? (
                   <Row className="g-3">
                     {filteredProducts.map((product) => {
-                      // Ambil harga dasar awal produk dari varian pertama untuk katalog utama depan
                       const basePrice = product.types && product.types.length > 0 ? Number(product.types[0].price) : 0;
                       const discountPercent = Number(product.discountPercentage) || 0;
                       const finalCatalogPrice = basePrice * (1 - discountPercent / 100);
+                      const imageList = parseProductImages(product.imgUrl);
+                      const displayThumbnail = imageList[0] || "";
 
                       return (
                         <Col key={product.id} lg={4} md={6} xs={6} className="mb-4">
@@ -238,8 +337,8 @@ const ProductsPage = () => {
                                   -{discountPercent}%
                                 </span>
                               )}
-                              {product.imgUrl ? (
-                                <img src={`${API_URL}${product.imgUrl}`} className="d-block w-100" style={{ aspectRatio: '1/1', objectFit: 'cover' }} alt={product.name} />
+                              {displayThumbnail ? (
+                                <img src={`${API_URL}${displayThumbnail}`} className="d-block w-100" style={{ aspectRatio: '1/1', objectFit: 'cover' }} alt={product.name} />
                               ) : (
                                 <div className="d-flex align-items-center justify-content-center bg-light text-secondary" style={{ aspectRatio: '1/1' }}>
                                   <BoxSeam size={40} />
@@ -284,38 +383,42 @@ const ProductsPage = () => {
         <Offcanvas.Body><FilterContent /></Offcanvas.Body>
       </Offcanvas>
 
-      <Modal show={showDetail} onHide={() => setShowDetail(false)} size="lg" centered>
-        <Modal.Body className="p-0">
-          <Button variant="light" onClick={() => setShowDetail(false)} className="position-absolute end-0 top-0 m-3 z-3 rounded-circle" style={{ width: '35px', height: '35px', border: '1px solid #ddd' }}>✕</Button>
+      {/* MODAL 1: OVERVIEW COMPONENT DETAIL BARANG */}
+      <Modal show={showDetail} onHide={() => !isAddingToCart && setShowDetail(false)} size="lg" centered>
+        <Modal.Body className="p-0 position-relative">
+          <Button variant="light" disabled={isAddingToCart} onClick={() => setShowDetail(false)} className="position-absolute end-0 top-0 m-3 z-3 rounded-circle" style={{ width: '35px', height: '35px', border: '1px solid #ddd' }}>✕</Button>
           {selectedProduct && (
             <Row className="g-0">
               <Col md={6} className="bg-light d-flex align-items-center justify-content-center" style={{ minHeight: '350px' }}>
-                {selectedProduct.imgUrl ? (
-                  <img src={`${API_URL}${selectedProduct.imgUrl}`} className="w-100 h-100" style={{ aspectRatio: '1/1', objectFit: 'contain', padding: '20px' }} alt="detail" />
-                ) : (
-                  <div className="text-secondary py-5"><BoxSeam size={80} /></div>
-                )}
+                {(() => {
+                  const modalImages = parseProductImages(selectedProduct.imgUrl);
+                  return modalImages[0] ? (
+                    <img src={`${API_URL}${modalImages[0]}`} className="w-100 h-100" style={{ aspectRatio: '1/1', objectFit: 'contain', padding: '20px' }} alt="detail" />
+                  ) : (
+                    <div className="text-secondary py-5"><BoxSeam size={80} /></div>
+                  );
+                })()}
               </Col>
               <Col md={6} className="p-4 d-flex flex-column justify-content-between">
                 <div>
                   <h4 className="fw-bold text-dark mb-1 text-uppercase">{selectedProduct.name}</h4>
                   <p className="text-muted small mb-3" style={{ lineHeight: '1.5' }}>{selectedProduct.description || "Tidak ada deskripsi produk."}</p>
                   
-                  {/* BOX DINAMIS PERHITUNGAN HARGA POTONG DISKON */}
                   <div className="bg-light p-3 rounded-3 mb-4 border">
                     {selectedVariant ? (
                       <>
                         <div className="d-flex align-items-center gap-2 mb-1">
-                          {/* Harga Varian Asli Dicoret */}
-                          <span className="text-muted text-decoration-line-through" style={{ fontSize: '1rem' }}>
-                            Rp {Number(selectedVariant.price).toLocaleString("id-ID")}
-                          </span>
-                          {/* Persentase Diskon Statis/Dinamis dari DB */}
-                          <span className="badge bg-danger rounded-pill" style={{ fontSize: '0.75rem' }}>
-                            -{Number(selectedProduct.discountPercentage)}%
-                          </span>
+                          {Number(selectedProduct.discountPercentage) > 0 && (
+                            <span className="text-muted text-decoration-line-through" style={{ fontSize: '1rem' }}>
+                              Rp {Number(selectedVariant.price).toLocaleString("id-ID")}
+                            </span>
+                          )}
+                          {Number(selectedProduct.discountPercentage) > 0 && (
+                            <span className="badge bg-danger rounded-pill" style={{ fontSize: '0.75rem' }}>
+                              -{Number(selectedProduct.discountPercentage)}%
+                            </span>
+                          )}
                         </div>
-                        {/* Hasil Harga Potong Diskon Akhir */}
                         <h2 className="text-danger fw-extrabold m-0" style={{ fontWeight: '800' }}>
                           Rp {(Number(selectedVariant.price) * (1 - Number(selectedProduct.discountPercentage) / 100)).toLocaleString("id-ID")}
                         </h2>
@@ -325,7 +428,6 @@ const ProductsPage = () => {
                     )}
                   </div>
                   
-                  {/* SELEKTOR OPSI PILIHAN VARIANT/TIPE */}
                   <div className="mb-4">
                     <span className="small d-block fw-bold text-secondary text-uppercase mb-2" style={{ fontSize: '0.75rem', letterSpacing: '0.5px' }}>Pilihan Varian / Tipe:</span>
                     <div className="d-flex flex-wrap gap-2">
@@ -335,11 +437,9 @@ const ProductsPage = () => {
                           <button 
                             key={idx} 
                             type="button"
-                            onClick={() => setSelectedVariant(t)} // Switch Harga Utama & Diskon Mengikuti Varian Ini
+                            onClick={() => setSelectedVariant(t)} 
                             className={`btn text-start p-2 px-3 border rounded-3 ${
-                              isSelected 
-                                ? 'border-primary bg-primary-subtle' 
-                                : 'border-secondary-subtle bg-white text-dark'
+                              isSelected ? 'border-primary bg-primary-subtle' : 'border-secondary-subtle bg-white text-dark'
                             }`}
                             style={{ 
                               minWidth: '130px', 
@@ -358,12 +458,11 @@ const ProductsPage = () => {
                   </div>
                 </div>
 
-                {/* AREA UTAMA PANEL TOMBOL AKSI */}
                 <div className="d-grid gap-2 mt-4">
-                  <Button variant="outline-dark" size="lg" className="fw-bold py-2.5" style={{ borderRadius: '10px', fontSize: '0.95rem' }} onClick={handleAddToCart}>
-                    ADD TO CART
+                  <Button variant="outline-dark" size="lg" className="fw-bold py-2.5 d-flex align-items-center justify-content-center gap-2" style={{ borderRadius: '10px', fontSize: '0.95rem' }} onClick={handleAddToCart} disabled={isAddingToCart}>
+                    {isAddingToCart ? <Spinner animation="border" size="sm" /> : <><CartPlusFill size={18} /> ADD TO CART</>}
                   </Button>
-                  <Button variant="dark" size="lg" className="fw-bold py-2.5" style={{ borderRadius: '10px', fontSize: '0.95rem' }}>
+                  <Button variant="danger" size="lg" className="fw-bold py-2.5" style={{ borderRadius: '10px', fontSize: '0.95rem' }} onClick={handleOpenBuyNowModal} disabled={isAddingToCart}>
                     BELI SEKARANG
                   </Button>
                 </div>
@@ -372,6 +471,94 @@ const ProductsPage = () => {
           )}
         </Modal.Body>
       </Modal>
+
+      {/* MODAL 2: FORM DATA TRANSAKSI PEMBELIAN (FIX TYPO SELECT CLOSURE TAG) */}
+      <Modal show={showBuyNowModal} onHide={() => !isSubmittingOrder && setShowBuyNowModal(false)} size="md" centered backdrop="static">
+        <Modal.Header closeButton={!isSubmittingOrder} className="bg-light">
+          <Modal.Title className="fw-bold h5 text-dark d-flex align-items-center gap-2">
+            <CreditCard className="text-danger" /> Formulir Rincian Pembelian
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleCheckoutAndWhatsApp}>
+          <Modal.Body className="p-4" style={{ maxHeight: "calc(100vh - 210px)", overflowY: "auto" }}>
+            {selectedProduct && selectedVariant && (
+              <>
+                <div className="bg-light p-3 rounded-3 border mb-3 small shadow-sm">
+                  <div className="text-secondary font-monospace" style={{ fontSize: '11px' }}>PRODUCT ID: {selectedProduct.id}</div>
+                  <div className="fw-bold text-dark text-uppercase mt-1" style={{ fontSize: '14px' }}>{selectedProduct.name} ({selectedVariant.type})</div>
+                  <div className="fw-bold text-primary h6 m-0 mt-1">
+                    Harga Satuan: Rp {(Number(selectedVariant.price) * (1 - Number(selectedProduct.discountPercentage) / 100)).toLocaleString("id-ID")}
+                  </div>
+                </div>
+
+                <Form.Group className="mb-3">
+                  <Form.Label className="small fw-bold text-secondary">Nama Lengkap Customer</Form.Label>
+                  <Form.Control type="text" required value={buyCustomerName} onChange={(e) => setBuyCustomerName(e.target.value)} placeholder="Masukkan nama penerima..." />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label className="small fw-bold text-secondary">Alamat Email Customer</Form.Label>
+                  <Form.Control type="email" required value={buyCustomerEmail} onChange={(e) => setBuyCustomerEmail(e.target.value)} placeholder="Contoh: pembeli@email.com" />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label className="small fw-bold text-secondary">Nomor Telepon aktif</Form.Label>
+                  <Form.Control type="tel" required value={buyCustomerPhone} onChange={(e) => setBuyCustomerPhone(e.target.value)} placeholder="Contoh: 08123456789" />
+                </Form.Group>
+
+                <Row>
+                  <Col md={6} xs={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label className="small fw-bold text-secondary">Jumlah (Quantity)</Form.Label>
+                      <Form.Control type="number" min={1} required value={buyQuantity} onChange={(e) => setBuyQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6} xs={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label className="small fw-bold text-secondary">Durasi Pengiriman</Form.Label>
+                      <Form.Select value={buyShippingDuration} onChange={(e) => setBuyShippingDuration(e.target.value)}>
+                        <option value="Reguler (2-3 Hari)">Reguler (2-3 Hari Kerja)</option>
+                        <option value="Ekspres (1 Hari)">Ekspres / Same-Day (1 Hari)</option>
+                        <option value="Kargo (5-7 Hari)">Kargo / Ekonomi (5-7 Hari)</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <Form.Group className="mb-3">
+                  <Form.Label className="small fw-bold text-secondary">Alamat Tujuan Pengiriman Lengkap</Form.Label>
+                  <Form.Control as="textarea" rows={3} required value={buyAddress} onChange={(e) => setBuyAddress(e.target.value)} placeholder="Tulis alamat rumah lengkap..." />
+                </Form.Group>
+
+                {/* FIX UTAMA: Tag penutup sekarang ditutup dengan benar menggunakan </Form.Group> */}
+                <Form.Group className="mb-2">
+                  <Form.Label className="small fw-bold text-secondary">Metode Pembayaran</Form.Label>
+                  <Form.Select value={buyPaymentMethod} onChange={(e) => setBuyPaymentMethod(e.target.value)}>
+                    <option value="Transfer Bank">Transfer Bank Manual (BCA/Mandiri)</option>
+                    <option value="E-Wallet">E-Wallet (Gopay/OVO/Dana)</option>
+                    <option value="COD">COD (Bayar di Tempat)</option>
+                  </Form.Select>
+                </Form.Group>
+              </>
+            )}
+          </Modal.Body>
+          <Modal.Footer className="bg-light">
+            <Button variant="secondary" onClick={() => setShowBuyNowModal(false)} disabled={isSubmittingOrder}>Batal</Button>
+            <Button type="submit" variant="success" className="fw-bold px-4 d-flex align-items-center gap-2" disabled={isSubmittingOrder}>
+              {isSubmittingOrder ? (
+                <>
+                  <Spinner animation="border" size="sm" /> Memproses Invoice...
+                </>
+              ) : (
+                <>
+                  <Whatsapp /> Simpan & Kirim ke WA
+                </>
+              )}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
     </div>
   );
 };

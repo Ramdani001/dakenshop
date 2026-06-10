@@ -47,7 +47,8 @@ interface TableProps<T> {
   filterValues?: Record<string, string>;
   onPageChange: (page: number) => void;
   onLimitChange: (limit: number) => void;
-  onSortChange: (key: string, order: "asc" | "desc") => void;
+  // REFAKTOR: Mengubah properti penunjang sorting & filtering menjadi opsional (?) agar anti-crash
+  onSortChange?: (key: string, order: "asc" | "desc") => void;
   onFilterChange?: (key: string, value: string) => void;
   height?: number | string;
 }
@@ -115,9 +116,55 @@ export function TableComponent<
   onFilterChange,
   height = "60vh",
 }: TableProps<T>) {
+  
   const handleSortClick = (key: string) => {
-    const newOrder = sortBy === key && sortOrder === "asc" ? "desc" : "asc";
-    onSortChange(key, newOrder);
+    if (onSortChange) {
+      const newOrder = sortBy === key && sortOrder === "asc" ? "desc" : "asc";
+      onSortChange(key, newOrder);
+    }
+  };
+
+  // LOGIK REFAKTOR: Otomatisasi pembentukan susunan nomor halaman (Pagination Array List)
+  const renderPaginationItems = () => {
+    const items = [];
+    const current = metadata.page;
+    const total = metadata.totalPages;
+    
+    // Tampilkan tombol halaman dinamis di sekeliling halaman aktif saat ini
+    const startPage = Math.max(1, current - 1);
+    const endPage = Math.min(total, current + 1);
+
+    if (startPage > 1) {
+      items.push(
+        <Pagination.Item key={1} onClick={() => onPageChange(1)}>
+          1
+        </Pagination.Item>
+      );
+      if (startPage > 2) items.push(<Pagination.Ellipsis key="start-ell" disabled />);
+    }
+
+    for (let page = startPage; page <= endPage; page++) {
+      items.push(
+        <Pagination.Item
+          key={page}
+          active={page === current}
+          onClick={() => onPageChange(page)}
+        >
+          {page}
+        </Pagination.Item>
+      );
+    }
+
+    if (endPage < total) {
+      if (endPage < total - 1) items.push(<Pagination.Ellipsis key="end-ell" disabled />);
+      items.push(
+        <Pagination.Item key={total} onClick={() => onPageChange(total)}>
+          {total}
+        </Pagination.Item>
+      );
+    }
+
+    return items;
   };
 
   return (
@@ -155,21 +202,12 @@ export function TableComponent<
                           <span className="ms-2">
                             {sortBy === col.key ? (
                               sortOrder === "asc" ? (
-                                <SortAlphaDown
-                                  className="text-primary"
-                                  size={14}
-                                />
+                                <SortAlphaDown className="text-primary" size={14} />
                               ) : (
-                                <SortAlphaUp
-                                  className="text-primary"
-                                  size={14}
-                                />
+                                <SortAlphaUp className="text-primary" size={14} />
                               )
                             ) : (
-                              <ArrowDownUp
-                                className="text-muted opacity-50"
-                                size={12}
-                              />
+                              <ArrowDownUp className="text-muted opacity-50" size={12} />
                             )}
                           </span>
                         )}
@@ -249,8 +287,8 @@ export function TableComponent<
                 className="small text-muted border-start ps-3"
                 style={{ fontSize: "12px" }}
               >
-                Show {(metadata.page - 1) * metadata.limit + 1} -
-                {Math.min(metadata.page * metadata.limit, metadata.total)} from
+                Show {metadata.total === 0 ? 0 : (metadata.page - 1) * metadata.limit + 1} -{" "}
+                {Math.min(metadata.page * metadata.limit, metadata.total)} from{" "}
                 {metadata.total} entries
               </div>
             </div>
@@ -266,14 +304,15 @@ export function TableComponent<
                 onClick={() => onPageChange(metadata.page - 1)}
               />
 
-              <Pagination.Item active>{metadata.page}</Pagination.Item>
+              {/* RENDER DYNAMIC LIST SINKRONISASI */}
+              {renderPaginationItems()}
 
               <Pagination.Next
-                disabled={metadata.page >= metadata.totalPages}
+                disabled={metadata.page >= metadata.totalPages || metadata.totalPages === 0}
                 onClick={() => onPageChange(metadata.page + 1)}
               />
               <Pagination.Last
-                disabled={metadata.page >= metadata.totalPages}
+                disabled={metadata.page >= metadata.totalPages || metadata.totalPages === 0}
                 onClick={() => onPageChange(metadata.totalPages)}
               />
             </Pagination>

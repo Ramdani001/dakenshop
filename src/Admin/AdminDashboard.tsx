@@ -14,6 +14,7 @@ import CategoryManager from "./CategoryManager.tsx";
 import DashboardHome from "./DashboardHome.tsx";
 import UserManagement from "./UserManagement.tsx";
 import ProductManager from "./ProductManager.tsx";
+import TransactionManager from "./TransactionManager.tsx";
 
 type MenuType = "dashboard" | "user" | "categories" | "products" | "transaction";
 
@@ -167,12 +168,7 @@ const AdminDashboard: React.FC = () => {
       case "products":
         return <ProductManager /> ;
       case "transaction":
-        return (
-          <div>
-            <h2 className="fw-bold mb-3">Transaction</h2>
-            <p className="text-muted">Kelola data transaction.</p>
-          </div>
-        );
+        return <TransactionManager />
       default:
         return <DashboardHome />;
     }

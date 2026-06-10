@@ -24,7 +24,7 @@ const DashboardHome: React.FC = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/dashboard/stats"); // Ubah URL sesuai port backend kamu
+        const response = await fetch("http://103.30.194.75:3005/api/dashboard/stats");
         const json = await response.json();
         setData(json);
       } catch (error) {
@@ -49,6 +49,17 @@ const DashboardHome: React.FC = () => {
     return <div className="text-center mt-5 text-danger">Data gagal dimuat dari server database.</div>;
   }
 
+  // Amankan data: jika properti dari API bernilai null/undefined, otomatis jadi array kosong []
+  const salesData = data.salesData || [];
+  const userData = data.userData || [];
+  const productData = data.productData || [];
+  const quickStats = data.quickStats || {
+    totalProducts: "0",
+    activeCategories: "0",
+    activePromos: "0",
+    pendingOrders: "0"
+  };
+
   return (
     <div>
       <div className="mb-4">
@@ -63,7 +74,8 @@ const DashboardHome: React.FC = () => {
             <h5 className="fw-bold mb-4">Gross Sales Performance</h5>
             <div style={{ width: "100%", height: 300 }}>
               <ResponsiveContainer>
-                <AreaChart data={data.salesData}>
+                {/* Grafik tetap dirender meskipun salesData kosong */}
+                <AreaChart data={salesData}>
                   <defs>
                     <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.1}/>
@@ -81,15 +93,17 @@ const DashboardHome: React.FC = () => {
           </Card>
         </Col>
 
-        {/* 2. Bar Chart User Terdaftar (Selain Admin) Rentang 1 Bulan */}
+        {/* 2. Bar Chart User Terdaftar Rentang 1 Bulan */}
         <Col lg={4}>
           <Card className="border-0 shadow-sm p-4" style={{ borderRadius: "20px" }}>
             <h5 className="fw-bold mb-4">New Registered Users</h5>
             <div style={{ width: "100%", height: 300 }}>
               <ResponsiveContainer>
-                <BarChart data={data.userData}>
+                {/* Grafik tetap dirender meskipun userData kosong */}
+                <BarChart data={userData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#94A3B8', fontSize: 12}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#94A3B8', fontSize: 12}} />
                   <Tooltip cursor={{fill: 'transparent'}} />
                   <Bar dataKey="users" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={20} />
                 </BarChart>
@@ -104,21 +118,37 @@ const DashboardHome: React.FC = () => {
             <h5 className="fw-bold mb-4">Best Selling Products</h5>
             <div className="d-flex align-items-center justify-content-center" style={{ width: "100%", height: 300 }}>
               <ResponsiveContainer>
-                <PieChart>
-                  <Pie
-                    data={data.productData}
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {data.productData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend verticalAlign="bottom" height={36}/>
-                </PieChart>
+                {productData.length > 0 ? (
+                  <PieChart>
+                    <Pie
+                      data={productData}
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {productData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry?.color || "#3B82F6"} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend verticalAlign="bottom" height={36}/>
+                  </PieChart>
+                ) : (
+                  // Cadangan lingkaran kosong abu-abu estetis jika data produk benar-benar belum ada
+                  <PieChart>
+                    <Pie
+                      data={[{ name: "No Data", value: 1 }]}
+                      innerRadius={60}
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                      <Cell fill="#E2E8F0" />
+                    </Pie>
+                    <Tooltip formatter={() => "0"} />
+                    <Legend verticalAlign="bottom" height={36} />
+                  </PieChart>
+                )}
               </ResponsiveContainer>
             </div>
           </Card>
@@ -130,10 +160,10 @@ const DashboardHome: React.FC = () => {
             <h5 className="fw-bold mb-4">Quick Stats</h5>
             <Row className="g-3">
               {[
-                { label: "Total Products", value: data.quickStats.totalProducts, color: "#3B82F6" },
-                { label: "Active Categories", value: data.quickStats.activeCategories, color: "#10B981" },
-                { label: "Active Promos", value: data.quickStats.activePromos, color: "#F59E0B" },
-                { label: "Pending Orders", value: data.quickStats.pendingOrders, color: "#EF4444" },
+                { label: "Total Products", value: quickStats.totalProducts || "0", color: "#3B82F6" },
+                { label: "Active Categories", value: quickStats.activeCategories || "0", color: "#10B981" },
+                { label: "Active Promos", value: quickStats.activePromos || "0", color: "#F59E0B" },
+                { label: "Pending Orders", value: quickStats.pendingOrders || "0", color: "#EF4444" },
               ].map((item, i) => (
                 <Col xs={6} key={i}>
                   <div className="p-3 border rounded-3" style={{ backgroundColor: "#F8FAFC" }}>
