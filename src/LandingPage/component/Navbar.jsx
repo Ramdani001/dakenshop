@@ -204,7 +204,7 @@ const CustomNavbar = () => {
                 <Person size={26} color={currentPath === "/profile" ? "#0d6efd" : "black"}/>
               </Nav.Link>
             ) : (
-              <Button as={Link} to="/login" variant="primary" className="rounded-pill px-4 fw-bold shadow-sm d-none d-lg-block ms-3" style={{ fontSize: '0.8rem' }}>
+              <Button as={Link} to="/login" variant="primary" className="rounded-pill px-4 fw-bold shadow-sm ms-3" style={{ fontSize: '0.8rem' }}>
                 MASUK
               </Button>
             )}
