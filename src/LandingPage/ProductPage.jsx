@@ -6,13 +6,11 @@ const ProductsPage = () => {
   const API_URL = 'http://103.30.194.75:3005';
   const WHATSAPP_NUMBER = '6285624432695';
 
-  // --- STATE UTAMA ---
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // --- STATE UI ---
   const [showFilter, setShowFilter] = useState(false);
   const [filter, setFilter] = useState("Semua"); 
   const [filterLabel, setFilterLabel] = useState("Semua"); 
@@ -21,7 +19,6 @@ const ProductsPage = () => {
   const [selectedVariant, setSelectedVariant] = useState(null); 
   const [isAddingToCart, setIsAddingToCart] = useState(false);
 
-  // --- STATE FORM DIRECT CHECKOUT (WHATSAPP + DATABASE) ---
   const [showBuyNowModal, setShowBuyNowModal] = useState(false);
   const [buyCustomerName, setBuyCustomerName] = useState("");
   const [buyCustomerPhone, setBuyCustomerPhone] = useState("");
@@ -95,6 +92,7 @@ const ProductsPage = () => {
     setShowDetail(true);
   };
 
+  // --- FUNGSI INTEGRASI KERANJANG (Disesuaikan) ---
   const handleAddToCart = async () => {
     if (!selectedProduct || !selectedVariant) {
       alert("Silakan pilih varian produk terlebih dahulu.");
@@ -102,7 +100,7 @@ const ProductsPage = () => {
     }
     const token = getCleanToken();
     if (!token) {
-      alert("Silakan login akun terlebih dahulu untuk mengaktifkan sinkronisasi Cart!");
+      alert("Silakan login akun terlebih dahulu untuk menggunakan fitur keranjang!");
       return;
     }
     setIsAddingToCart(true);
@@ -118,14 +116,15 @@ const ProductsPage = () => {
           quantity: 1
         })
       });
+      
+      const result = await response.json();
       if (!response.ok) {
-        const errorMsg = await response.text();
-        throw new Error(errorMsg || "Gagal memasukkan produk ke dalam database keranjang");
+        throw new Error(result.message || "Gagal memasukkan produk ke dalam keranjang.");
       }
-      alert(`Sukses menambahkan "${selectedProduct.name} (${selectedVariant.type})" ke database Cart Anda!`);
+      alert("Sukses menambahkan produk ke keranjang!");
       setShowDetail(false);
     } catch (err) {
-      alert(`Gagal sinkronisasi Cart: ${err.message}`);
+      alert(`Gagal: ${err.message}`);
     } finally {
       setIsAddingToCart(false);
     }
@@ -177,7 +176,6 @@ const ProductsPage = () => {
     };
 
     try {
-      // Menembak endpoint POST /api/orders (sesuai rootRouter.use("/orders", ...))
       const response = await fetch(`${API_URL}/api/orders`, {
         method: "POST",
         headers: {
@@ -191,7 +189,7 @@ const ProductsPage = () => {
           address: buyAddress.trim(),
           totalAmount: totalPayment,
           status: "PENDING_PAYMENT", 
-          items: [itemPayload],       
+          items: [itemPayload],        
           orderItems: [itemPayload]  
         })
       });
@@ -214,7 +212,6 @@ const ProductsPage = () => {
       setIsSubmittingOrder(false);
     }
 
-    // 2. Rangkai Teks Invoice WhatsApp
     const messageText = 
 `*ORDER INSTAN DAKENSHOP*
 ${generatedOrderId ? `• No. Invoice    : INV-${generatedOrderId.substring(0, 8).toUpperCase()}\n` : ""}--------------------------------------------
@@ -383,7 +380,6 @@ _Sistem otomatis: Data pesanan ini telah disinkronkan ke database transaksi Dake
         <Offcanvas.Body><FilterContent /></Offcanvas.Body>
       </Offcanvas>
 
-      {/* MODAL 1: OVERVIEW COMPONENT DETAIL BARANG */}
       <Modal show={showDetail} onHide={() => !isAddingToCart && setShowDetail(false)} size="lg" centered>
         <Modal.Body className="p-0 position-relative">
           <Button variant="light" disabled={isAddingToCart} onClick={() => setShowDetail(false)} className="position-absolute end-0 top-0 m-3 z-3 rounded-circle" style={{ width: '35px', height: '35px', border: '1px solid #ddd' }}>✕</Button>
@@ -472,7 +468,6 @@ _Sistem otomatis: Data pesanan ini telah disinkronkan ke database transaksi Dake
         </Modal.Body>
       </Modal>
 
-      {/* MODAL 2: FORM DATA TRANSAKSI PEMBELIAN (FIX TYPO SELECT CLOSURE TAG) */}
       <Modal show={showBuyNowModal} onHide={() => !isSubmittingOrder && setShowBuyNowModal(false)} size="md" centered backdrop="static">
         <Modal.Header closeButton={!isSubmittingOrder} className="bg-light">
           <Modal.Title className="fw-bold h5 text-dark d-flex align-items-center gap-2">
@@ -530,7 +525,6 @@ _Sistem otomatis: Data pesanan ini telah disinkronkan ke database transaksi Dake
                   <Form.Control as="textarea" rows={3} required value={buyAddress} onChange={(e) => setBuyAddress(e.target.value)} placeholder="Tulis alamat rumah lengkap..." />
                 </Form.Group>
 
-                {/* FIX UTAMA: Tag penutup sekarang ditutup dengan benar menggunakan </Form.Group> */}
                 <Form.Group className="mb-2">
                   <Form.Label className="small fw-bold text-secondary">Metode Pembayaran</Form.Label>
                   <Form.Select value={buyPaymentMethod} onChange={(e) => setBuyPaymentMethod(e.target.value)}>

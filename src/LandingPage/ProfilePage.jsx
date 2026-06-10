@@ -12,7 +12,7 @@ const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false); // State untuk loading saat simpan
+  const [updating, setUpdating] = useState(false);
 
   const API_URL = 'http://103.30.194.75:3005/api';
 
