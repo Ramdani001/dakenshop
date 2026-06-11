@@ -92,39 +92,61 @@ const ProductsPage = () => {
     setShowDetail(true);
   };
 
-  // --- FUNGSI INTEGRASI KERANJANG (Disesuaikan) ---
-  const handleAddToCart = async () => {
+ const handleAddToCart = async () => {
     if (!selectedProduct || !selectedVariant) {
       alert("Silakan pilih varian produk terlebih dahulu.");
       return;
     }
+
     const token = getCleanToken();
     if (!token) {
       alert("Silakan login akun terlebih dahulu untuk menggunakan fitur keranjang!");
       return;
     }
+
     setIsAddingToCart(true);
+
     try {
+      const payload = {
+        productId: selectedProduct.id,
+        quantity: 1,
+        // Jika backend Anda membutuhkan tipe varian, tambahkan baris di bawah ini:
+        // productTypeId: selectedVariant.id 
+      };
+
+      console.log("Mengirim payload ke API:", payload); // DEBUG: Cek di F12 Console
+
       const response = await fetch(`${API_URL}/api/cart`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({
-          productId: selectedProduct.id,
-          quantity: 1
-        })
+        body: JSON.stringify(payload)
       });
-      
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || "Gagal memasukkan produk ke dalam keranjang.");
+
+      // Ambil respon dalam bentuk teks dulu untuk antisipasi jika server tidak mengembalikan JSON
+      const textResult = await response.text();
+      let result;
+      try {
+        result = JSON.parse(textResult);
+      } catch (e) {
+        result = { message: textResult };
       }
-      alert("Sukses menambahkan produk ke keranjang!");
+
+      if (!response.ok) {
+        throw new Error(result.message || result.error || "Gagal memasukkan produk ke dalam database keranjang.");
+      }
+
+      // Jika sukses, beri tahu komponen lain untuk update
+      window.dispatchEvent(new Event("cartUpdated"));
+      
+      alert(`Sukses menambahkan "${selectedProduct.name}" ke keranjang!`);
       setShowDetail(false);
+
     } catch (err) {
-      alert(`Gagal: ${err.message}`);
+      console.error("Detail Error API:", err); // DEBUG: Lihat di F12 Console
+      alert(`Gagal sinkronisasi Cart: ${err.message}`);
     } finally {
       setIsAddingToCart(false);
     }
