@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Form, Button, Nav, Spinner, Badge } from 're
 import { Person, Bag, GeoAlt, BoxArrowRight, ShieldLock, Camera } from 'react-bootstrap-icons';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import CONFIG from '../Config.ts';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -13,8 +14,6 @@ const ProfilePage = () => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-
-  const API_URL = 'http://103.30.194.75:3005/api';
 
   useEffect(() => {
     fetchUserData();
@@ -31,7 +30,7 @@ const ProfilePage = () => {
       }
 
       try {
-        const response = await fetch(`${API_URL}/profile/me`, {
+        const response = await fetch(`${CONFIG.BASE_URL}/api/profile/me`, {
           method: 'GET',
           headers: { 
             'Authorization': `Bearer ${cleanToken}`,
@@ -94,7 +93,7 @@ const ProfilePage = () => {
 
   try {
     // 3. Tambahkan ID ke dalam URL Fetch
-    const response = await fetch(`${API_URL}/profile/${userData.id}`, {
+    const response = await fetch(`${CONFIG.BASE_URL}/api/profile/${userData.id}`, {
       method: 'PUT',
       headers: { 
         'Authorization': `Bearer ${cleanToken}` 
@@ -138,7 +137,7 @@ const ProfilePage = () => {
 
     setUpdating(true);
     try {
-      const response = await fetch(`${API_URL}/profile/${userData.id}`, { 
+      const response = await fetch(`${CONFIG.BASE_URL}/api/profile/${userData.id}`, { 
         method: 'PUT',
         headers: { 
           'Authorization': `Bearer ${cleanToken}` 
@@ -206,7 +205,7 @@ const ProfilePage = () => {
                 >
                   {userData?.image ? (
                     <img 
-                      src={`http://210.79.190.222:3005${userData.image}`} 
+                      src={`${CONFIG.BASE_URL}${userData.image}`} 
                       alt="Profile" 
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       onError={(e) => { e.target.src = "https://via.placeholder.com/120"; }} 

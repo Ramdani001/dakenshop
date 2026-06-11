@@ -13,6 +13,7 @@ import {
 } from "react-bootstrap-icons";
 import { ColumnDef, TableComponent } from "./Component/TableComponent.tsx";
 import * as XLSX from "xlsx";
+import CONFIG from "../Config.ts";
 
 interface MetaData {
   total: number;
@@ -65,7 +66,6 @@ const ProductManager: React.FC = () => {
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const BASE_URL = "http://103.30.194.75:3005";
 
   const getCleanToken = () => {
     const token = localStorage.getItem('token');
@@ -96,14 +96,14 @@ const ProductManager: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const prodRes = await fetch(`${BASE_URL}/api/products?page=${page}&limit=${limit}`);
+      const prodRes = await fetch(`${CONFIG.BASE_URL}/api/products?page=${page}&limit=${limit}`);
       if (!prodRes.ok) throw new Error("Gagal mengambil data produk dari database");
       const prodData = await prodRes.json();
       
       setProducts(prodData.data || []);
       setMetadata(prodData.meta || { total: 0, page: 1, limit: 10, totalPages: 1 });
 
-      const catRes = await fetch(`${BASE_URL}/api/categories?page=1&limit=100`);
+      const catRes = await fetch(`${CONFIG.BASE_URL}/api/categories?page=1&limit=100`);
       if (catRes.ok) {
         const catData = await catRes.json();
         setCategories(catData.data || []);
@@ -170,7 +170,7 @@ const ProductManager: React.FC = () => {
       const imgs = parseProductImages(prod.imgUrl);
       const firstImg = imgs[0] || "";
       const isExternalUrl = firstImg && (firstImg.startsWith("http://") || firstImg.startsWith("https://"));
-      const finalImageUrl = isExternalUrl ? firstImg : (firstImg ? `${BASE_URL}${firstImg}` : "-");
+      const finalImageUrl = isExternalUrl ? firstImg : (firstImg ? `${CONFIG.BASE_URL}${firstImg}` : "-");
 
       return {
         "ID Produk": prod.id,
@@ -250,7 +250,7 @@ const ProductManager: React.FC = () => {
               formData.append("imgUrl", JSON.stringify([urlGambarExcel])); 
             }
 
-            const response = await fetch(`${BASE_URL}/api/products`, {
+            const response = await fetch(`${CONFIG.BASE_URL}/api/products`, {
               method: "POST",
               headers: { "Authorization": `Bearer ${getCleanToken()}` },
               body: formData
@@ -388,7 +388,7 @@ const ProductManager: React.FC = () => {
 
     setFormIsSubmitting(true);
     try {
-      const url = modalType === "ADD" ? `${BASE_URL}/api/products` : `${BASE_URL}/api/products/${selectedProduct?.id}`;
+      const url = modalType === "ADD" ? `${CONFIG.BASE_URL}/api/products` : `${CONFIG.BASE_URL}/api/products/${selectedProduct?.id}`;
       const method = modalType === "ADD" ? "POST" : "PUT";
 
       const formData = new FormData();
@@ -438,7 +438,7 @@ const ProductManager: React.FC = () => {
     if (!selectedProduct) return;
     setFormIsSubmitting(true);
     try {
-      const response = await fetch(`${BASE_URL}/api/products/${selectedProduct.id}`, {
+      const response = await fetch(`${CONFIG.BASE_URL}/api/products/${selectedProduct.id}`, {
         method: "DELETE",
         headers: { 
           "Authorization": `Bearer ${getCleanToken()}`,
@@ -473,7 +473,7 @@ const ProductManager: React.FC = () => {
         const imgs = parseProductImages(prod.imgUrl);
         const displayImg = imgs[0] || ""; 
         const isExternalUrl = displayImg && (displayImg.startsWith("http://") || displayImg.startsWith("https://"));
-        const finalSrc = isExternalUrl ? displayImg : `${BASE_URL}${displayImg}`;
+        const finalSrc = isExternalUrl ? displayImg : `${CONFIG.BASE_URL}${displayImg}`;
 
         return (
           <div className="bg-light rounded overflow-hidden border shadow-sm mx-auto visual-img-wrapper position-relative">
@@ -641,7 +641,7 @@ const ProductManager: React.FC = () => {
                   {existingImages.map((img, idx) => {
                     if (!img) return null;
                     const isExt = img.startsWith("http://") || img.startsWith("https://");
-                    const finalUrl = isExt ? img : `${BASE_URL}${img}`;
+                    const finalUrl = isExt ? img : `${CONFIG.BASE_URL}${img}`;
                     return (
                       <div key={`existing-${idx}`} className="position-relative border rounded shadow-sm overflow-hidden image-preview-item card-img-container">
                         <img src={finalUrl} alt="Server" style={{ width: "100%", height: "100%", objectFit: "cover" }} />

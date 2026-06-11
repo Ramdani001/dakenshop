@@ -9,6 +9,7 @@ import {
   Search,
 } from "react-bootstrap-icons";
 import { ColumnDef, TableComponent } from "./Component/TableComponent.tsx";
+import CONFIG from "../Config.ts";
 
 // Interface Data User
 interface UserProfile {
@@ -79,7 +80,7 @@ const UserManagement: React.FC = () => {
     setError(null);
     try {
       const response = await fetch(
-        `http://103.30.194.75:3005/api/profile?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`,
+        `${CONFIG.BASE_URL}/api/profile?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`,
         {
           method: "GET",
           headers: {
@@ -148,8 +149,8 @@ const UserManagement: React.FC = () => {
 
     try {
       const url = modalType === "ADD" 
-        ? "http://103.30.194.75:3005/api/profile"
-        : `http://103.30.194.75:3005/api/profile/${selectedUser?.id}`;
+        ? `${CONFIG.BASE_URL}/api/profile`
+        : `${CONFIG.BASE_URL}/api/profile/${selectedUser?.id}`;
 
       const method = modalType === "ADD" ? "POST" : "PUT";
       
@@ -185,7 +186,7 @@ const UserManagement: React.FC = () => {
     setFormIsSubmitting(true);
 
     try {
-      const response = await fetch(`http://103.30.194.75:3005/api/profile/${selectedUser.id}`, {
+      const response = await fetch(`${CONFIG.BASE_URL}/api/profile/${selectedUser.id}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${getCleanToken()}`,
@@ -225,7 +226,7 @@ const UserManagement: React.FC = () => {
         >
           {user.image ? (
             <img
-              src={"http:///103.30.194.75:3005" + user.image}
+              src={CONFIG.BASE_URL + user.image}
               alt={user.name}
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
               onError={(e) => { (e.target as HTMLImageElement).src = "https://via.placeholder.com/150"; }}

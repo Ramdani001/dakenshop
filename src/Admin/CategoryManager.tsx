@@ -9,6 +9,7 @@ import {
 } from "react-bootstrap-icons";
 import { ColumnDef, TableComponent } from "./Component/TableComponent.tsx";
 import { Category } from "../Types/Category.ts";
+import CONFIG from "../Config.ts";
 
 interface MetaData {
   total: number;
@@ -45,8 +46,6 @@ const CategoryManager: React.FC = () => {
     icon: null,
   });
 
-  const BASE_URL = "http://103.30.194.75:3005";
-
   // Helper mengambil Bearer Token
   const getCleanToken = () => {
     const token = localStorage.getItem('token');
@@ -82,7 +81,7 @@ const CategoryManager: React.FC = () => {
     setError(null);
     try {
       const response = await fetch(
-        `${BASE_URL}/api/categories?page=${page}&limit=${limit}`,
+        `${CONFIG.BASE_URL}/api/categories?page=${page}&limit=${limit}`,
         {
           method: "GET",
           headers: {
@@ -134,8 +133,8 @@ const CategoryManager: React.FC = () => {
 
     try {
       const url = modalType === "ADD" 
-        ? `${BASE_URL}/api/categories` 
-        : `${BASE_URL}/api/categories/${selectedCategory?.id}`;
+        ? `${CONFIG.BASE_URL}/api/categories` 
+        : `${CONFIG.BASE_URL}/api/categories/${selectedCategory?.id}`;
         
       const method = modalType === "ADD" ? "POST" : "PUT";
 
@@ -174,7 +173,7 @@ const CategoryManager: React.FC = () => {
     setFormIsSubmitting(true);
 
     try {
-      const response = await fetch(`${BASE_URL}/api/categories/${selectedCategory.id}`, {
+      const response = await fetch(`${CONFIG.BASE_URL}/api/categories/${selectedCategory.id}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${getCleanToken()}`,
@@ -240,7 +239,7 @@ const CategoryManager: React.FC = () => {
         >
           {cat.iconUrl ? (
             <img
-              src={`${BASE_URL}${cat.iconUrl}`}
+              src={`${CONFIG.BASE_URL}${cat.iconUrl}`}
               alt={cat.label}
               style={{ width: "24px", height: "24px", objectFit: "contain" }}
               onError={(e) => { (e.target as HTMLImageElement).src = "https://via.placeholder.com/40"; }}

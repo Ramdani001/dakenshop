@@ -4,6 +4,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, PieChart, Pie, Legend
 } from "recharts";
+import CONFIG from "../Config.ts";
 
 interface DashboardData {
   salesData: Array<{ name: string; sales: number }>;
@@ -24,7 +25,7 @@ const DashboardHome: React.FC = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const response = await fetch("http://103.30.194.75:3005/api/dashboard/stats");
+        const response = await fetch(CONFIG.BASE_URL + "/api/dashboard/stats");
         const json = await response.json();
         setData(json);
       } catch (error) {

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Card, Alert } from 'react-bootstrap';
 import { Envelope, Lock, BoxSeam, CameraVideo, CheckCircle, Person, Telephone, GeoAlt, Camera } from 'react-bootstrap-icons';
 import { useNavigate } from 'react-router-dom';
+import CONFIG from '../Config.ts';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -48,8 +49,7 @@ const AuthPage = () => {
   setError(null);
   setSuccess(null);
 
-  const BASE_URL = 'http://103.30.194.75:3005/api'; 
-  const endpoint = isLogin ? `${BASE_URL}/auth/login` : `${BASE_URL}/auth/register`;
+  const endpoint = isLogin ? `${CONFIG.BASE_URL}/api/auth/login` : `${CONFIG.BASE_URL}/api/auth/register`;
 
   try {
     let body;
