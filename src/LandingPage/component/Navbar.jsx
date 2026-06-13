@@ -88,26 +88,59 @@ const CustomNavbar = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (showCart) loadCartData();
-  }, [showCart]);
+    useEffect(() => {
+      if (showCart) loadCartData();
+    }, [showCart]);
 
-  const handleUpdateQuantity = (productId, variantId, amount) => {
-    const cartKey = getCartKey();
-    const updatedCart = cartItems
-      .map((item) => {
-        if (item.productId === productId && item.variantId === variantId) {
-          const newQuantity = item.quantity + amount;
-          return { ...item, quantity: newQuantity };
-        }
-        return item;
-      })
-      .filter((item) => item.quantity > 0);
+    const token = localStorage.getItem('token');
 
-    localStorage.setItem(cartKey, JSON.stringify(updatedCart));
+   const handleUpdateQuantity = async (cartItemId, amount) => {
+   const itemToUpdate = cartItems.find((item) => cartItems[0].cartId === cartItemId);  
+
+    console.log("Cart Items saat ini:", cartItems[0].cartId);
+    console.log("Cart Item ID yang dicari:", cartItemId);
+    
+    if (!itemToUpdate) {
+        console.error("Item tidak ditemukan di cart. ID yang dicari:", cartItems[0].cartId);
+        return;
+    }
+
+  if (!itemToUpdate) {
+    console.error("Item tidak ditemukan di cart");
+    return;
+  }
+
+  const newQuantity = itemToUpdate.quantity + amount;
+  if (newQuantity <= 0) return;
+
+  try {
+    const response = await fetch(`${CONFIG.BASE_URL}/api/cart/item/${cartItemId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}` 
+      },
+      body: JSON.stringify({ 
+        quantity: newQuantity 
+      }),
+    });
+
+    if (!response.ok) throw new Error('Gagal mengupdate quantity di server');
+
+    const updatedCart = cartItems.map((item) => {
+      if (item.id === cartItemId) {
+        return { ...item, quantity: newQuantity };
+      }
+      return item;
+    });
+
     setCartItems(updatedCart);
     window.dispatchEvent(new Event("cartUpdated"));
-  };
+    
+  } catch (error) {
+    console.error("Error:", error);
+  }
+};
 
   const handleRemoveItem = (productId, variantId) => {
     const cartKey = getCartKey();
@@ -115,6 +148,7 @@ const CustomNavbar = () => {
       (item) => !(item.productId === productId && item.variantId === variantId),
     );
     localStorage.setItem(cartKey, JSON.stringify(updatedCart));
+    
     setCartItems(updatedCart);
     window.dispatchEvent(new Event("cartUpdated"));
   };
@@ -400,7 +434,7 @@ const CustomNavbar = () => {
                           className="border-0 bg-transparent p-1 px-2 text-secondary d-flex align-items-center"
                           onClick={() =>
                             handleUpdateQuantity(
-                              item.productId,
+                              item.cartId,
                               item.variantId,
                               -1,
                             )
@@ -423,7 +457,7 @@ const CustomNavbar = () => {
                           className="border-0 bg-transparent p-1 px-2 text-secondary d-flex align-items-center"
                           onClick={() =>
                             handleUpdateQuantity(
-                              item.productId,
+                              item.cartId,
                               item.variantId,
                               1,
                             )

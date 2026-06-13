@@ -300,23 +300,6 @@ const BestProduct = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* AREA UTAMA PANEL TOMBOL AKSI */}
-                <div className="d-grid gap-2 mt-4">
-                  <Button 
-                    variant="outline-dark" 
-                    size="lg" 
-                    className="fw-bold py-2.5" 
-                    style={{ borderRadius: '10px', fontSize: '0.95rem' }} 
-                    onClick={handleAddToCart}
-                    disabled={cartLoading} 
-                  >
-                    {cartLoading ? 'ADDING...' : 'ADD TO CART'}
-                  </Button>
-                  <Button variant="dark" size="lg" className="fw-bold py-2.5" style={{ borderRadius: '10px', fontSize: '0.95rem' }}>
-                    BELI SEKARANG
-                  </Button>
-                </div>
               </Col>
             </Row>
           )}
