@@ -16,14 +16,11 @@ import {
   Funnel,
   BoxSeam,
   CartPlusFill,
-  Whatsapp,
   CreditCard,
 } from "react-bootstrap-icons";
 import CONFIG from "../Config.ts";
 
 const ProductsPage = () => {
-  const WHATSAPP_NUMBER = "6285624432695";
-
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +51,20 @@ const ProductsPage = () => {
   const getCleanToken = () => {
     const token = localStorage.getItem("token");
     return token ? token.replace(/\s/g, "").replace(/['"]+/g, "") : "";
+  };
+
+  const getCartKey = () => {
+    let userId = "guest";
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        userId = parsedUser.id || parsedUser.uuid || "guest";
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return userId === "guest" ? "cart_guest" : `cart_${userId}`;
   };
 
   const parseProductImages = (imageField) => {
@@ -136,11 +147,8 @@ const ProductsPage = () => {
       const payload = {
         productId: selectedProduct.id,
         quantity: 1,
-        // Jika backend Anda membutuhkan tipe varian, tambahkan baris di bawah ini:
         productTypeId: selectedVariant.id,
       };
-
-      console.log("Mengirim payload ke API:", payload); // DEBUG: Cek di F12 Console
 
       const response = await fetch(`${CONFIG.BASE_URL}/api/cart`, {
         method: "POST",
@@ -151,31 +159,20 @@ const ProductsPage = () => {
         body: JSON.stringify(payload),
       });
 
-      // Ambil respon dalam bentuk teks dulu untuk antisipasi jika server tidak mengembalikan JSON
-      const textResult = await response.text();
-      let result;
-      try {
-        result = JSON.parse(textResult);
-      } catch (e) {
-        result = { message: textResult };
-      }
+      const result = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          result.message ||
-            result.error ||
-            "Gagal memasukkan produk ke dalam database keranjang.",
+          result.message || result.error || "Gagal menambahkan produk ke keranjang.",
         );
       }
 
-      // Jika sukses, beri tahu komponen lain untuk update
       window.dispatchEvent(new Event("cartUpdated"));
 
       alert(`Sukses menambahkan "${selectedProduct.name}" ke keranjang!`);
       setShowDetail(false);
     } catch (err) {
-      console.error("Detail Error API:", err); // DEBUG: Lihat di F12 Console
-      alert(`Gagal sinkronisasi Cart: ${err.message}`);
+      alert(`Gagal menambahkan ke keranjang: ${err.message}`);
     } finally {
       setIsAddingToCart(false);
     }
@@ -186,6 +183,15 @@ const ProductsPage = () => {
       alert("Silakan pilih varian produk terlebih dahulu.");
       return;
     }
+
+    const token = getCleanToken();
+    if (!token) {
+      alert(
+        "Silakan login akun terlebih dahulu untuk melakukan pembelian produk!",
+      );
+      return;
+    }
+
     setBuyCustomerName("");
     setBuyCustomerPhone("");
     setBuyCustomerEmail("");
@@ -218,87 +224,83 @@ const ProductsPage = () => {
     const totalPayment = priceAfterDiscount * buyQuantity;
 
     setIsSubmittingOrder(true);
-    let generatedOrderId = "";
-
-    const itemPayload = {
-      productId: selectedProduct.id,
-      productName: selectedProduct.name,
-      productType: selectedVariant.type,
-      productTypeId: selectedVariant.id,
-      price: priceAfterDiscount,
-      quantity: buyQuantity,
-    };
 
     try {
-      const response = await fetch(`${CONFIG.BASE_URL}/api/orders/checkout-wa`, {
+      const checkoutPayload = {
+        customerName: buyCustomerName.trim(),
+        customerEmail: buyCustomerEmail.trim(),
+        customerPhone: buyCustomerPhone.trim(),
+        address: buyAddress.trim(),
+        cartItems: [
+          {
+            productId: selectedProduct.id,
+            typeId: selectedVariant.id,
+            quantity: buyQuantity,
+            productType: {
+              id: selectedVariant.id,
+              type: selectedVariant.type,
+              price: selectedVariant.price,
+              productId: selectedProduct.id,
+            },
+            product: {
+              id: selectedProduct.id,
+              name: selectedProduct.name,
+              imgUrl: selectedProduct.imgUrl,
+              description: selectedProduct.description || "",
+              discountPercentage: selectedProduct.discountPercentage,
+              categoryId: selectedProduct.categoryId || null,
+            },
+          },
+        ],
+      };
+
+      const response = await fetch(`${CONFIG.BASE_URL}/api/orders/checkout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          customerName: buyCustomerName.trim(),
-          customerEmail: buyCustomerEmail.trim(),
-          customerPhone: buyCustomerPhone.trim(),
-          address: buyAddress.trim(),
-          totalAmount: totalPayment,
-          status: "PENDING_PAYMENT",
-          items: [itemPayload],
-          orderItems: [itemPayload],
-        }),
+        body: JSON.stringify(checkoutPayload),
       });
 
-      const resultData = await response.json();
-
       if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(errText || "Gagal memproses checkout order");
+      }
+
+      const resData = await response.json();
+      const snapToken = resData.data?.snapToken;
+
+      if (!snapToken) {
         throw new Error(
-          resultData.message ||
-            "Gagal mendaftarkan transaksi ke database server.",
+          "Gagal memperoleh payment gateway token dari Midtrans.",
         );
       }
 
-      if (resultData && resultData.data && resultData.data.id) {
-        generatedOrderId = String(resultData.data.id);
-      } else if (resultData && resultData.id) {
-        generatedOrderId = String(resultData.id);
-      }
-    } catch (dbErr) {
-      console.error("Gagal menanam transaksi ke database:", dbErr);
+      window.snap.pay(snapToken, {
+        onSuccess: function (result) {
+          alert("Pembayaran Berhasil! Terima kasih.");
+          setShowBuyNowModal(false);
+          setShowDetail(false);
+        },
+        onPending: function (result) {
+          alert("Menunggu Pembayaran Anda, Silakan selesaikan invoice!");
+          setShowBuyNowModal(false);
+          setShowDetail(false);
+        },
+        onError: function (result) {
+          alert("Pembayaran Gagal atau Terjadi kesalahan sistem!");
+          console.error(result);
+        },
+        onClose: function () {
+          alert("Anda menutup pop-up sebelum menyelesaikan transaksi.");
+        },
+      });
+    } catch (err) {
+      alert(err.message || "Terjadi kendala koneksi server");
     } finally {
       setIsSubmittingOrder(false);
     }
-
-    const messageText = `*ORDER INSTAN DAKENSHOP*
-${generatedOrderId ? `• No. Invoice    : INV-${generatedOrderId.substring(0, 8).toUpperCase()}\n` : ""}--------------------------------------------
-*Data Pelanggan:*
-• Nama Customer : ${buyCustomerName.trim()}
-• No. Telepon   : ${buyCustomerPhone.trim()}
-• Email         : ${buyCustomerEmail.trim()}
-
-*Data Produk:*
-• ID Produk     : ${selectedProduct.id}
-• Nama Produk   : ${selectedProduct.name}
-• Varian Tipe   : ${selectedVariant.type}
-• Harga Satuan  : Rp ${priceAfterDiscount.toLocaleString("id-ID")}
-
-*Rincian Pembelian:*
-• Jumlah (Qty)  : ${buyQuantity}x
-• Pengiriman    : ${buyShippingDuration}
-• Metode Bayar  : ${buyPaymentMethod}
-• Total Bayar   : *Rp ${totalPayment.toLocaleString("id-ID")}*
-
-*Alamat Tujuan Pengiriman:*
-${buyAddress.trim()}
---------------------------------------------
-_Sistem otomatis: Data pesanan ini telah disinkronkan ke database transaksi DakenShop._`;
-
-    const encodedMessage = encodeURIComponent(messageText);
-    const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`;
-
-    window.open(waUrl, "_blank");
-
-    setShowBuyNowModal(false);
-    setShowDetail(false);
   };
 
   const FilterContent = () => (
@@ -860,17 +862,17 @@ _Sistem otomatis: Data pesanan ini telah disinkronkan ke database transaksi Dake
             </Button>
             <Button
               type="submit"
-              variant="success"
+              variant="primary"
               className="fw-bold px-4 d-flex align-items-center gap-2"
               disabled={isSubmittingOrder}
             >
               {isSubmittingOrder ? (
                 <>
-                  <Spinner animation="border" size="sm" /> Memproses Invoice...
+                  <Spinner animation="border" size="sm" /> Memproses Pembayaran...
                 </>
               ) : (
                 <>
-                  <Whatsapp /> Simpan & Kirim ke WA
+                  <CreditCard /> BAYAR SEKARANG
                 </>
               )}
             </Button>

@@ -23,7 +23,9 @@ const CustomNavbar = () => {
   const [showCart, setShowCart] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [cartItems, setCartItems] = useState([]);
-  const [isProcessing, setIsProcessing] = useState(false); // Indikator loading checkout
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [loadingQuantityItemId, setLoadingQuantityItemId] = useState(null);
+  const [loadingRemoveItemId, setLoadingRemoveItemId] = useState(null);
 
   const location = useLocation();
   const currentPath = location.pathname;
@@ -68,6 +70,8 @@ const CustomNavbar = () => {
 
       if (result?.data?.items) {
         setCartItems(result.data.items);
+        const cartKey = getCartKey();
+        localStorage.setItem(cartKey, JSON.stringify(result.data.items));
       } else {
         setCartItems([]);
       }
@@ -88,69 +92,69 @@ const CustomNavbar = () => {
     };
   }, []);
 
-    useEffect(() => {
-      if (showCart) loadCartData();
-    }, [showCart]);
+  useEffect(() => {
+    if (showCart) loadCartData();
+  }, [showCart]);
 
-    const token = localStorage.getItem('token');
+  const handleUpdateQuantity = async (cartItemId, amount) => {
+    const itemToUpdate = cartItems.find((item) => item.id === cartItemId);
 
-   const handleUpdateQuantity = async (cartItemId, amount) => {
-   const itemToUpdate = cartItems.find((item) => cartItems[0].cartId === cartItemId);  
-
-    console.log("Cart Items saat ini:", cartItems[0].cartId);
-    console.log("Cart Item ID yang dicari:", cartItemId);
-    
     if (!itemToUpdate) {
-        console.error("Item tidak ditemukan di cart. ID yang dicari:", cartItems[0].cartId);
-        return;
+      console.error("Item tidak ditemukan di cart");
+      return;
     }
 
-  if (!itemToUpdate) {
-    console.error("Item tidak ditemukan di cart");
-    return;
-  }
+    const newQuantity = itemToUpdate.quantity + amount;
+    if (newQuantity <= 0) return;
 
-  const newQuantity = itemToUpdate.quantity + amount;
-  if (newQuantity <= 0) return;
+    setLoadingQuantityItemId(cartItemId);
 
-  try {
-    const response = await fetch(`${CONFIG.BASE_URL}/api/cart/item/${cartItemId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}` 
-      },
-      body: JSON.stringify({ 
-        quantity: newQuantity 
-      }),
-    });
+    try {
+      const response = await fetch(`${CONFIG.BASE_URL}/api/cart/item/${cartItemId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getCleanToken()}`,
+        },
+        body: JSON.stringify({
+          quantity: newQuantity,
+        }),
+      });
 
-    if (!response.ok) throw new Error('Gagal mengupdate quantity di server');
+      if (!response.ok) throw new Error('Gagal mengupdate quantity di server');
 
-    const updatedCart = cartItems.map((item) => {
-      if (item.id === cartItemId) {
-        return { ...item, quantity: newQuantity };
-      }
-      return item;
-    });
+      await loadCartData();
 
-    setCartItems(updatedCart);
-    window.dispatchEvent(new Event("cartUpdated"));
-    
-  } catch (error) {
-    console.error("Error:", error);
-  }
-};
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Gagal mengupdate quantity");
+    } finally {
+      setLoadingQuantityItemId(null);
+    }
+  };
 
-  const handleRemoveItem = (productId, variantId) => {
-    const cartKey = getCartKey();
-    const updatedCart = cartItems.filter(
-      (item) => !(item.productId === productId && item.variantId === variantId),
-    );
-    localStorage.setItem(cartKey, JSON.stringify(updatedCart));
-    
-    setCartItems(updatedCart);
-    window.dispatchEvent(new Event("cartUpdated"));
+  const handleRemoveItem = async (cartItemId) => {
+    setLoadingRemoveItemId(cartItemId);
+
+    try {
+      const response = await fetch(`${CONFIG.BASE_URL}/api/cart/item/${cartItemId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getCleanToken()}`,
+        },
+      });
+
+      if (!response.ok) throw new Error('Gagal menghapus item dari server');
+
+      await loadCartData();
+
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Gagal menghapus item dari cart");
+    } finally {
+      setLoadingRemoveItemId(null);
+    }
   };
 
   // --- INTEGRASI PEMBAYARAN MIDTRANS (PURE JAVASCRIPT / JSX) ---
@@ -200,16 +204,44 @@ const CustomNavbar = () => {
 
       // Membuka Pop-up Snap Midtrans langsung di Browser pembeli
       window.snap.pay(snapToken, {
-        onSuccess: function (result) {
+        onSuccess: async function (result) {
           alert("Pembayaran Berhasil! Terima kasih.");
-          localStorage.removeItem(getCartKey());
+          const cartKey = getCartKey();
+          localStorage.removeItem(cartKey);
+          
+          try {
+            await fetch(`${CONFIG.BASE_URL}/api/cart/clear`, {
+              method: "DELETE",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${getCleanToken()}`,
+              },
+            });
+          } catch (err) {
+            console.error("Gagal menghapus cart dari database:", err);
+          }
+          
           setCartItems([]);
           window.dispatchEvent(new Event("cartUpdated"));
           setShowCart(false);
         },
-        onPending: function (result) {
+        onPending: async function (result) {
           alert("Menunggu Pembayaran Anda, Silakan selesaikan invoice!");
-          localStorage.removeItem(getCartKey());
+          const cartKey = getCartKey();
+          localStorage.removeItem(cartKey);
+          
+          try {
+            await fetch(`${CONFIG.BASE_URL}/api/cart/clear`, {
+              method: "DELETE",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${getCleanToken()}`,
+              },
+            });
+          } catch (err) {
+            console.error("Gagal menghapus cart dari database:", err);
+          }
+          
           setCartItems([]);
           window.dispatchEvent(new Event("cartUpdated"));
           setShowCart(false);
@@ -429,19 +461,22 @@ const CustomNavbar = () => {
                         className="d-flex align-items-center bg-light border rounded p-0.5 mt-2"
                         style={{ width: "fit-content" }}
                       >
-                        <Button
-                          variant="white"
+                        <button
+                          type="button"
                           className="border-0 bg-transparent p-1 px-2 text-secondary d-flex align-items-center"
-                          onClick={() =>
-                            handleUpdateQuantity(
-                              item.cartId,
-                              item.variantId,
-                              -1,
-                            )
-                          }
+                          onClick={() => handleUpdateQuantity(item.id, -1)}
+                          disabled={loadingQuantityItemId === item.id}
+                          style={{ 
+                            cursor: loadingQuantityItemId === item.id ? 'not-allowed' : 'pointer',
+                            opacity: loadingQuantityItemId === item.id ? 0.6 : 1
+                          }}
                         >
-                          <DashLg size={12} />
-                        </Button>
+                          {loadingQuantityItemId === item.id ? (
+                            <Spinner animation="border" size="sm" />
+                          ) : (
+                            <DashLg size={12} />
+                          )}
+                        </button>
                         <span
                           className="fw-bold px-2 text-dark font-monospace"
                           style={{
@@ -452,31 +487,41 @@ const CustomNavbar = () => {
                         >
                           {item.quantity}
                         </span>
-                        <Button
-                          variant="white"
+                        <button
+                          type="button"
                           className="border-0 bg-transparent p-1 px-2 text-secondary d-flex align-items-center"
-                          onClick={() =>
-                            handleUpdateQuantity(
-                              item.cartId,
-                              item.variantId,
-                              1,
-                            )
-                          }
+                          onClick={() => handleUpdateQuantity(item.id, 1)}
+                          disabled={loadingQuantityItemId === item.id}
+                          style={{ 
+                            cursor: loadingQuantityItemId === item.id ? 'not-allowed' : 'pointer',
+                            opacity: loadingQuantityItemId === item.id ? 0.6 : 1
+                          }}
                         >
-                          <PlusLg size={12} />
-                        </Button>
+                          {loadingQuantityItemId === item.id ? (
+                            <Spinner animation="border" size="sm" />
+                          ) : (
+                            <PlusLg size={12} />
+                          )}
+                        </button>
                       </div>
                     </div>
 
-                    <Button
-                      variant="link"
-                      className="text-danger p-1 ms-2"
-                      onClick={() =>
-                        handleRemoveItem(item.productId, item.variantId)
-                      }
+                    <button
+                      type="button"
+                      className="border-0 bg-transparent text-danger p-1 ms-2"
+                      onClick={() => handleRemoveItem(item.id)}
+                      disabled={loadingRemoveItemId === item.id}
+                      style={{ 
+                        cursor: loadingRemoveItemId === item.id ? 'not-allowed' : 'pointer',
+                        opacity: loadingRemoveItemId === item.id ? 0.6 : 1
+                      }}
                     >
-                      <Trash3 size={15} />
-                    </Button>
+                      {loadingRemoveItemId === item.id ? (
+                        <Spinner animation="border" size="sm" />
+                      ) : (
+                        <Trash3 size={15} />
+                      )}
+                    </button>
                   </div>
                 );
               })
