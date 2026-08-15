@@ -186,6 +186,15 @@ const ProductsPage = () => {
       alert("Silakan pilih varian produk terlebih dahulu.");
       return;
     }
+
+    const token = getCleanToken();
+    if (!token) {
+      alert(
+        "Silakan login akun terlebih dahulu untuk melakukan pembelian produk!",
+      );
+      return;
+    }
+
     setBuyCustomerName("");
     setBuyCustomerPhone("");
     setBuyCustomerEmail("");
