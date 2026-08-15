@@ -88,59 +88,49 @@ const CustomNavbar = () => {
     };
   }, []);
 
-    useEffect(() => {
-      if (showCart) loadCartData();
-    }, [showCart]);
+  useEffect(() => {
+    if (showCart) loadCartData();
+  }, [showCart]);
 
-    const token = localStorage.getItem('token');
+  const handleUpdateQuantity = async (cartItemId, amount) => {
+    const itemToUpdate = cartItems.find((item) => item.id === cartItemId);
 
-   const handleUpdateQuantity = async (cartItemId, amount) => {
-   const itemToUpdate = cartItems.find((item) => cartItems[0].cartId === cartItemId);  
-
-    console.log("Cart Items saat ini:", cartItems[0].cartId);
-    console.log("Cart Item ID yang dicari:", cartItemId);
-    
     if (!itemToUpdate) {
-        console.error("Item tidak ditemukan di cart. ID yang dicari:", cartItems[0].cartId);
-        return;
+      console.error("Item tidak ditemukan di cart");
+      return;
     }
 
-  if (!itemToUpdate) {
-    console.error("Item tidak ditemukan di cart");
-    return;
-  }
+    const newQuantity = itemToUpdate.quantity + amount;
+    if (newQuantity <= 0) return;
 
-  const newQuantity = itemToUpdate.quantity + amount;
-  if (newQuantity <= 0) return;
+    try {
+      const response = await fetch(`${CONFIG.BASE_URL}/api/cart/item/${cartItemId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getCleanToken()}`,
+        },
+        body: JSON.stringify({
+          quantity: newQuantity,
+        }),
+      });
 
-  try {
-    const response = await fetch(`${CONFIG.BASE_URL}/api/cart/item/${cartItemId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}` 
-      },
-      body: JSON.stringify({ 
-        quantity: newQuantity 
-      }),
-    });
+      if (!response.ok) throw new Error('Gagal mengupdate quantity di server');
 
-    if (!response.ok) throw new Error('Gagal mengupdate quantity di server');
+      const updatedCart = cartItems.map((item) => {
+        if (item.id === cartItemId) {
+          return { ...item, quantity: newQuantity };
+        }
+        return item;
+      });
 
-    const updatedCart = cartItems.map((item) => {
-      if (item.id === cartItemId) {
-        return { ...item, quantity: newQuantity };
-      }
-      return item;
-    });
+      setCartItems(updatedCart);
+      window.dispatchEvent(new Event("cartUpdated"));
 
-    setCartItems(updatedCart);
-    window.dispatchEvent(new Event("cartUpdated"));
-    
-  } catch (error) {
-    console.error("Error:", error);
-  }
-};
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
 
   const handleRemoveItem = (productId, variantId) => {
     const cartKey = getCartKey();
@@ -433,11 +423,7 @@ const CustomNavbar = () => {
                           variant="white"
                           className="border-0 bg-transparent p-1 px-2 text-secondary d-flex align-items-center"
                           onClick={() =>
-                            handleUpdateQuantity(
-                              item.cartId,
-                              item.variantId,
-                              -1,
-                            )
+                            handleUpdateQuantity(item.id, -1)
                           }
                         >
                           <DashLg size={12} />
@@ -456,11 +442,7 @@ const CustomNavbar = () => {
                           variant="white"
                           className="border-0 bg-transparent p-1 px-2 text-secondary d-flex align-items-center"
                           onClick={() =>
-                            handleUpdateQuantity(
-                              item.cartId,
-                              item.variantId,
-                              1,
-                            )
+                            handleUpdateQuantity(item.id, 1)
                           }
                         >
                           <PlusLg size={12} />
