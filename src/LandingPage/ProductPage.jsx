@@ -53,6 +53,20 @@ const ProductsPage = () => {
     return token ? token.replace(/\s/g, "").replace(/['"]+/g, "") : "";
   };
 
+  const getCartKey = () => {
+    let userId = "guest";
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        userId = parsedUser.id || parsedUser.uuid || "guest";
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return userId === "guest" ? "cart_guest" : `cart_${userId}`;
+  };
+
   const parseProductImages = (imageField) => {
     if (!imageField) return [];
     let target = imageField.trim();
