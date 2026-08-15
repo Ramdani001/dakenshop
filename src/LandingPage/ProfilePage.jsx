@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Container, Row, Col, Card, Form, Button, Nav, Spinner, Badge } from 'react-bootstrap';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Container, Row, Col, Card, Form, Button, Nav, Spinner, Badge, Pagination } from 'react-bootstrap';
 import { Person, Bag, GeoAlt, BoxArrowRight, ShieldLock, Camera } from 'react-bootstrap-icons';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
@@ -14,10 +14,21 @@ const ProfilePage = () => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const ordersPerPage = 5;
 
   useEffect(() => {
     fetchUserData();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'orders') {
+      fetchOrders(currentPage);
+    }
+  }, [activeTab, currentPage]);
 
   const fetchUserData = async () => {
       const token = localStorage.getItem('token');
@@ -55,6 +66,35 @@ const ProfilePage = () => {
         setLoading(false);
       }
     };
+
+  const fetchOrders = useCallback(async (page = 1) => {
+    const token = localStorage.getItem('token');
+    const cleanToken = token ? token.replace(/\s/g, '').replace(/['"]+/g, '') : '';
+
+    if (!cleanToken) return;
+
+    setLoadingOrders(true);
+    try {
+      const response = await fetch(`${CONFIG.BASE_URL}/api/orders?page=${page}&limit=${ordersPerPage}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${cleanToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) throw new Error("Gagal mengambil data pesanan");
+
+      const result = await response.json();
+      setOrders(result.data || []);
+      setTotalPages(result.meta?.totalPages || 1);
+    } catch (err) {
+      console.error("Fetch Orders Error:", err);
+      setOrders([]);
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, [ordersPerPage]);
 
   const handleUnauthorized = () => {
     if (!alertShown.current) {
@@ -176,6 +216,10 @@ const ProfilePage = () => {
     });
   };
 
+  const handlePageChange = useCallback((page) => {
+    setCurrentPage(page);
+  }, []);
+
   if (loading) return (
     <Container className="text-center mt-5 pt-5">
       <Spinner animation="border" variant="dark" />
@@ -186,7 +230,15 @@ const ProfilePage = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'profile': return <PersonalInfo user={userData} onUpdate={handleUpdateProfile} updating={updating} />;
-      case 'orders': return <OrderHistory orders={userData?.orders || []} />;
+      case 'orders': return (
+        <OrderHistory 
+          orders={orders} 
+          loading={loadingOrders}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
+      );
       default: return <PersonalInfo user={userData} onUpdate={handleUpdateProfile} updating={updating} />;
     }
   };
@@ -255,7 +307,7 @@ const ProfilePage = () => {
   );
 };
 
-const PersonalInfo = ({ user, onUpdate, updating }) => (
+const PersonalInfo = React.memo(({ user, onUpdate, updating }) => (
   <>
     <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
       <h4 className="fw-bold mb-0">Informasi Pribadi</h4>
@@ -295,9 +347,135 @@ const PersonalInfo = ({ user, onUpdate, updating }) => (
       </div>
     </Form>
   </>
-);
-const OrderHistory = ({ orders = [] }) => {
-  // Jika data pesanan kosong, tampilkan state kosong
+));
+const OrderStatusBadge = React.memo(({ status }) => {
+  const statusMap = useMemo(() => ({
+    'WAITING_PROCESS': { bg: 'warning', label: 'Menunggu Proses' },
+    'PENDING_PAYMENT': { bg: 'info', label: 'Menunggu Pembayaran' },
+    'PAID': { bg: 'success', label: 'Sudah Dibayar' },
+    'PROCESSING': { bg: 'primary', label: 'Diproses' },
+    'SHIPPED': { bg: 'primary', label: 'Dikirim' },
+    'COMPLETED': { bg: 'success', label: 'Selesai' },
+    'CANCELED': { bg: 'danger', label: 'Dibatalkan' },
+  }), []);
+
+  const statusInfo = statusMap[status] || { bg: 'secondary', label: status };
+  return <Badge bg={statusInfo.bg}>{statusInfo.label}</Badge>;
+});
+
+const OrderItem = React.memo(({ item }) => (
+  <div className="d-flex justify-content-between align-items-center mb-1">
+    <span className="small text-truncate" style={{ maxWidth: '60%' }}>
+      {item.productName} ({item.productType})
+    </span>
+    <span className="small text-muted">
+      {item.quantity}x @ Rp {Number(item.price || 0).toLocaleString('id-ID')}
+    </span>
+  </div>
+));
+
+const OrderCard = React.memo(({ order }) => {
+  const totalItems = useMemo(
+    () => order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0,
+    [order.items]
+  );
+
+  const formattedDate = useMemo(
+    () => new Date(order.createdAt).toLocaleDateString('id-ID', { 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }),
+    [order.createdAt]
+  );
+
+  return (
+    <Card className="border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
+      <Card.Body className="p-3">
+        <div className="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <small className="text-muted d-block">Order ID: {order.id}</small>
+            <small className="text-muted d-block">{formattedDate}</small>
+          </div>
+          <OrderStatusBadge status={order.status} />
+        </div>
+
+        <div className="border-top pt-3">
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <span className="text-muted small">Total Item:</span>
+            <span className="fw-bold">{totalItems} item</span>
+          </div>
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <span className="text-muted small">Nama Penerima:</span>
+            <span className="fw-bold">{order.customerName}</span>
+          </div>
+          <div className="d-flex justify-content-between align-items-center">
+            <span className="text-muted">Total Pembayaran:</span>
+            <h5 className="fw-bold text-primary mb-0">
+              Rp {Number(order.totalAmount || 0).toLocaleString('id-ID')}
+            </h5>
+          </div>
+        </div>
+
+        <div className="border-top mt-3 pt-3">
+          <p className="text-muted small mb-2 fw-bold">Produk yang dibeli:</p>
+          {order.items?.map((item, idx) => (
+            <OrderItem key={idx} item={item} />
+          ))}
+        </div>
+      </Card.Body>
+    </Card>
+  );
+});
+
+const OrderPagination = React.memo(({ currentPage, totalPages, onPageChange }) => {
+  const pages = useMemo(() => {
+    const items = [];
+    for (let i = 1; i <= totalPages; i++) {
+      items.push(i);
+    }
+    return items;
+  }, [totalPages]);
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="d-flex justify-content-center mt-4">
+      <Pagination>
+        <Pagination.Prev 
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+        />
+        {pages.map((page) => (
+          <Pagination.Item
+            key={page}
+            active={page === currentPage}
+            onClick={() => onPageChange(page)}
+          >
+            {page}
+          </Pagination.Item>
+        ))}
+        <Pagination.Next 
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+        />
+      </Pagination>
+    </div>
+  );
+});
+
+const OrderHistory = React.memo(({ orders = [], loading = false, currentPage = 1, totalPages = 1, onPageChange }) => {
+  if (loading) {
+    return (
+      <div className="text-center py-5">
+        <Spinner animation="border" variant="dark" />
+        <p className="mt-2 text-muted fw-bold">Memuat riwayat pesanan...</p>
+      </div>
+    );
+  }
+
   if (!orders || orders.length === 0) {
     return (
       <div className="text-center py-5">
@@ -316,61 +494,17 @@ const OrderHistory = ({ orders = [] }) => {
         <Badge bg="dark">{orders.length} Pesanan</Badge>
       </div>
 
-      {orders.map((order, index) => (
-        <Card key={index} className="border-0 shadow-sm rounded-4 mb-3 overflow-hidden transition-hover">
-          <Card.Body className="p-0">
-            <Row className="g-0 align-items-center">
-              {/* FOTO PRODUK */}
-              <Col xs={4} md={2}>
-                <div style={{ height: '120px', width: '100%', backgroundColor: '#f8f9fa' }}>
-                  <img 
-                    src={order.productImg || 'https://via.placeholder.com/150'} 
-                    alt={order.productName}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                </div>
-              </Col>
-
-              {/* DETAIL PRODUK */}
-              <Col xs={8} md={7} className="p-3">
-                <div className="d-flex flex-column h-100">
-                  <div className="mb-1">
-                    <Badge 
-                      bg={order.status === 'Selesai' ? 'success' : order.status === 'Diproses' ? 'warning' : 'info'} 
-                      className="mb-2"
-                      style={{ fontSize: '10px' }}
-                    >
-                      {order.status.toUpperCase()}
-                    </Badge>
-                    <h6 className="fw-bold mb-1 text-truncate">{order.productName}</h6>
-                    <p className="text-muted small mb-1 text-truncate" style={{ maxWidth: '400px' }}>
-                      {order.description}
-                    </p>
-                  </div>
-                  <div className="mt-auto">
-                    <span className="text-muted small">Jumlah: <strong>{order.quantity}x</strong></span>
-                  </div>
-                </div>
-              </Col>
-
-              {/* HARGA & AKSI */}
-              <Col xs={12} md={3} className="p-3 bg-light border-start-md text-md-center d-flex flex-md-column justify-content-between align-items-center justify-content-md-center">
-                <div className="mb-md-2">
-                  <p className="text-muted small mb-0">Total Harga</p>
-                  <h5 className="fw-bold text-primary mb-0">
-                    Rp {order.price.toLocaleString('id-ID')}
-                  </h5>
-                </div>
-                <Button variant="dark" size="sm" className="rounded-pill px-3 mt-md-2" style={{ fontSize: '12px' }}>
-                  Detail
-                </Button>
-              </Col>
-            </Row>
-          </Card.Body>
-        </Card>
+      {orders.map((order) => (
+        <OrderCard key={order.id} order={order} />
       ))}
+
+      <OrderPagination 
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
     </div>
   );
-};
+});
 
 export default ProfilePage;
